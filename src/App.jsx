@@ -1,4 +1,4 @@
-// src/App.jsx
+
 import { useState, useEffect } from 'preact/hooks';
 import { SearchBar } from './components/SearchBar';
 import { ServiceFilters } from './components/ServiceFilters';
@@ -42,7 +42,7 @@ export const App = () => {
             setError(null);
         }
     }, [searchQuery, currentFilter, userLocation]);
-    
+
     const getUserLocation = async () => {
         try {
             const location = await locationService.getCurrentPosition();

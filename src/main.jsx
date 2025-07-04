@@ -1,4 +1,4 @@
-// src/main.jsx
+
 import { render } from 'preact';
 import { App } from './App';
 import './styles/main.css';

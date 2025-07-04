@@ -1,4 +1,4 @@
-// src/components/MapView.jsx
+
 import { useEffect, useRef } from 'preact/hooks';
 
 export const MapView = ({ userLocation, services = [] }) => {

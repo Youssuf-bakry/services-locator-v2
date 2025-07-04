@@ -7,7 +7,7 @@ export default defineConfig({
     
     // Inject environment variables at build time
     define: {
-        __GOOGLE_MAPS_API_KEY__: JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY)
+        __GOOGLE_MAPS_API_KEY__: JSON.stringify(process.env.local.VITE_GOOGLE_MAPS_API_KEY)
     },
     
     server: {

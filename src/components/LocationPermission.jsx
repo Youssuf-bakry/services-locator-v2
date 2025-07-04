@@ -1,4 +1,4 @@
-// src/components/LocationPermission.jsx
+
 import { useState } from 'preact/hooks';
 
 export const LocationPermission = ({ onLocationGranted }) => {
