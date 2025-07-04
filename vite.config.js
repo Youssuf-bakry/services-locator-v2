@@ -1,14 +1,9 @@
-// vite.config.js
+// vite.config.js - Simplified and safer
 import { defineConfig } from 'vite'
 import preact from '@preact/preset-vite'
 
 export default defineConfig({
     plugins: [preact()],
-    
-    // Inject environment variables at build time
-    define: {
-        __GOOGLE_MAPS_API_KEY__: JSON.stringify(process.env.local.VITE_GOOGLE_MAPS_API_KEY)
-    },
     
     server: {
         host: '0.0.0.0', // Allow access from network
@@ -20,7 +15,7 @@ export default defineConfig({
         devSourcemap: true
     },
     
-    // Handle environment variables
+    // Vite automatically handles VITE_ prefixed environment variables
     envPrefix: 'VITE_',
     
     build: {

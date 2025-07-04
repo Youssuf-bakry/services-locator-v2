@@ -1,20 +1,19 @@
 const getApiKey = () => {
-    // Try Vite environment variable first
-    const viteKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
     
-    // Fallback to build-time injected variable
-    const buildKey = typeof __GOOGLE_MAPS_API_KEY__ !== 'undefined' ? __GOOGLE_MAPS_API_KEY__ : null;
-    
-    const apiKey = viteKey || buildKey;
+
     
     if (!apiKey) {
-        console.error('Google Maps API key not found. Please check your environment variables.');
+        console.error('❌ Google Maps API key not found. Please check your environment variables.');
         return null;
     }
     
     // Basic validation
     if (!apiKey.startsWith('AIza')) {
-        console.warn('Google Maps API key format seems incorrect');
+        console.warn('⚠️Google Maps API key format seems incorrect');
+    }else {
+        console.log('✅ Google Maps API key configured successfully');
     }
     
     return apiKey;
@@ -33,7 +32,7 @@ export const CONFIG = {
     MAX_REQUESTS_PER_MINUTE: 60,
     CACHE_DURATION: 10 * 60 * 1000, // 10 minutes
     
-    // Development settings
+    // Environment detection
     IS_DEVELOPMENT: import.meta.env.DEV,
     IS_PRODUCTION: import.meta.env.PROD,
     
