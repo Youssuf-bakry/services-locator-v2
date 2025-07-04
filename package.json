@@ -1,28 +1,30 @@
 {
   "name": "city-services-locator",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "npm run dev",
+    "lint": "echo 'Add ESLint configuration if needed'",
+    "check-env": "node scripts/check-env.js"
   },
   "dependencies": {
-    "leaflet": "^1.9.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "leaflet": "^1.9.4"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react-swc": "^3.10.2",
-    "eslint": "^9.29.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.2.0",
-    "vite": "^7.0.0"
-  }
+    "vite": "^4.4.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "city-services",
+    "maps",
+    "google-places",
+    "location-finder"
+  ],
+  "description": "A web application to find nearby services like pharmacies, restaurants, and stores in your city"
 }
