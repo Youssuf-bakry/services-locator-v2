@@ -13,8 +13,7 @@ const filters = [
 export const ServiceFilters = ({ activeFilter, onFilterChange }) => {
     return (
         <div className="service-filters">
-            <h3>Filter Services</h3>
-            <div className="filter-buttons">
+                        <div className="filter-buttons">
                 {filters.map(filter => (
                     <button
                         key={filter.id}

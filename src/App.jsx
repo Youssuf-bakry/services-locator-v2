@@ -261,7 +261,7 @@ export const App = () => {
                     </div>
                 )}
                 
-                <div id="map-container">
+                <div id="map-container" hidden>
                     <MapView 
                         userLocation={userLocation}
                         services={filteredServices}
