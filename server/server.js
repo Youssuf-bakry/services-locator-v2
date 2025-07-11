@@ -20,10 +20,29 @@ if (process.env.MONGODB_URI) {
 app.use(helmet());
 app.use(compression());
 
-// CORS configuration
+// CORS configuration - Updated to allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',           // Local development
+  'http://localhost:5173',           // Vite dev server
+  'https://dawwarli.netlify.app',    // Your Netlify deployment
+  process.env.FRONTEND_URL           // Environment variable
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limiting
@@ -52,7 +71,8 @@ app.get('/health', (req, res) => {
     success: true,
     message: 'City Services API is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    allowedOrigins: allowedOrigins
   });
 });
 
@@ -103,6 +123,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌍 Allowed origins:`, allowedOrigins);
   
   if (!process.env.MONGODB_URI) {
     console.log('');

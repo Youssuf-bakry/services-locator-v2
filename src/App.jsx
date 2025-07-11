@@ -11,11 +11,14 @@ import { NoResultsState } from './components/NoResultsState';
 import { DataService } from './services/dataService';
 import { LocationService } from './services/locationService';
 import { calculateDistance } from './utils/helpers';
+import { MobileDebug } from './components/MobileDebug';
 
 const dataService = new DataService();
 const locationService = new LocationService();
 
 export const App = () => {
+    const [showMobileDebug, setShowMobileDebug] = useState(false)
+
     const [userLocation, setUserLocation] = useState(null);
     const [services, setServices] = useState([]);
     const [filteredServices, setFilteredServices] = useState([]);
@@ -271,6 +274,31 @@ export const App = () => {
                     {renderMainContent()}
                 </div>
             </main>
+           <button 
+    onClick={() => setShowMobileDebug(true)}
+    style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        background: '#ff6b6b',
+        color: 'white',
+        border: 'none',
+        borderRadius: '50%',
+        width: '60px',
+        height: '60px',
+        fontSize: '24px',
+        cursor: 'pointer',
+        zIndex: 1000,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+    }}
+    title="Mobile Debug"
+>
+    🔧
+</button>
+{/* Mobile Debug Component */}
+{showMobileDebug && (
+    <MobileDebug onClose={() => setShowMobileDebug(false)} />
+)}
         </div>
     );
 };
