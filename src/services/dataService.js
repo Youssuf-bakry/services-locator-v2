@@ -1,4 +1,327 @@
-// src/services/dataService.js
+// My MongoDB approach
+import { mockServices } from '../data/mockData.js';
+
+export class DataService {
+    constructor() {
+        // Your backend API URL
+        this.apiBaseUrl = 'http://localhost:5000/api';
+        this.cache = new Map();
+        this.cacheTimeout = 10 * 60 * 1000; // 10 minutes
+        
+        // Track API usage
+        this.requestCount = 0;
+        this.lastRequestTime = 0;
+        
+        console.log('✅ DataService initialized with MongoDB backend');
+    }
+
+    async getAllServices(userLocation = null) {
+        try {
+            console.log('🔄 Fetching all services from your MongoDB...');
+            
+            if (!userLocation) {
+                // Fallback to mock data if no location
+                console.log('ℹ️ No location provided, using mock data');
+                return mockServices;
+            }
+
+            const cacheKey = `all_${userLocation.lat},${userLocation.lng}`;
+            const cached = this.cache.get(cacheKey);
+            
+            if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+                console.log('📦 Using cached data for all services');
+                return cached.data;
+            }
+
+            // Call your MongoDB backend
+            const url = `${this.apiBaseUrl}/services/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=10000&limit=100`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'API request failed');
+            }
+
+            const services = result.data || [];
+            console.log(`✅ Fetched ${services.length} services from your database`);
+            
+            // Cache the results
+            this.cache.set(cacheKey, {
+                data: services,
+                timestamp: Date.now()
+            });
+
+            return services;
+
+        } catch (error) {
+            console.error('❌ Failed to fetch services from your backend:', error);
+            console.log('🔄 Falling back to mock data');
+            return mockServices;
+        }
+    }
+
+    async getServicesByCategory(category, userLocation = null) {
+        try {
+            console.log(`🔄 Fetching ${category} services from your MongoDB...`);
+            
+            if (!userLocation) {
+                return mockServices.filter(service => service.category === category);
+            }
+
+            const cacheKey = `${category}_${userLocation.lat},${userLocation.lng}`;
+            const cached = this.cache.get(cacheKey);
+            
+            if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+                console.log(`📦 Using cached data for ${category} services`);
+                return cached.data;
+            }
+
+            this.trackRequest();
+            
+            // Call your MongoDB backend
+            const url = `${this.apiBaseUrl}/services/category/${category}?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=10000&limit=50`;
+        
+            console.log('🔗 Frontend calling URL:', url);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'API request failed');
+            }
+
+            const services = result.data || [];
+            console.log(`✅ Fetched ${services.length} ${category} services from your database`);
+            
+            // Cache the results
+            this.cache.set(cacheKey, {
+                data: services,
+                timestamp: Date.now()
+            });
+
+            return services;
+
+        } catch (error) {
+            console.error(`❌ Failed to fetch ${category} services:`, error);
+            return mockServices.filter(service => service.category === category);
+        }
+    }
+
+    async searchByText(query, userLocation) {
+        try {
+            console.log(`🔍 Searching for "${query}" in your MongoDB...`);
+            
+            if (!userLocation) {
+                // Search in mock data
+                return mockServices.filter(service =>
+                    service.name.toLowerCase().includes(query.toLowerCase()) ||
+                    service.category.toLowerCase().includes(query.toLowerCase()) ||
+                    service.address.toLowerCase().includes(query.toLowerCase())
+                );
+            }
+
+            const cacheKey = `search_${query}_${userLocation.lat},${userLocation.lng}`;
+            const cached = this.cache.get(cacheKey);
+            
+            if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+                console.log(`📦 Using cached search results for "${query}"`);
+                return cached.data;
+            }
+
+            this.trackRequest();
+            
+            // Call your MongoDB backend
+            const url = `${this.apiBaseUrl}/services/search?q=${encodeURIComponent(query)}&lat=${userLocation.lat}&lng=${userLocation.lng}&radius=10000&limit=50`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'API request failed');
+            }
+
+            const services = result.data || [];
+            console.log(`✅ Found ${services.length} results for "${query}" in your database`);
+            
+            // Cache the results
+            this.cache.set(cacheKey, {
+                data: services,
+                timestamp: Date.now()
+            });
+            
+            return services;
+
+        } catch (error) {
+            console.error(`❌ Failed to search for "${query}":`, error);
+            
+            // Fallback to mock data search
+            return mockServices.filter(service =>
+                service.name.toLowerCase().includes(query.toLowerCase()) ||
+                service.category.toLowerCase().includes(query.toLowerCase()) ||
+                service.address.toLowerCase().includes(query.toLowerCase())
+            );
+        }
+    }
+
+    async addService(service) {
+        try {
+            console.log('📝 Adding new service to your MongoDB...');
+            
+            const response = await fetch(`${this.apiBaseUrl}/admin/services`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(service)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to add service');
+            }
+
+            console.log('✅ Service added successfully to your database');
+            
+            // Clear cache to refresh data
+            this.clearCache();
+            
+            return result.data;
+
+        } catch (error) {
+            console.error('❌ Failed to add service:', error);
+            throw error;
+        }
+    }
+
+    // Helper method to check if service is open
+    isServiceOpen(hours) {
+        if (!hours || hours.includes('not available')) return null;
+        if (hours.includes('24') || hours.includes('open')) return true;
+        if (hours.includes('closed')) return false;
+        
+        const now = new Date();
+        const currentHour = now.getHours();
+        return currentHour >= 8 && currentHour <= 22;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    trackRequest() {
+        this.requestCount++;
+        this.lastRequestTime = Date.now();
+        console.log(`📊 API Request #${this.requestCount} to your MongoDB backend`);
+    }
+
+    // Clear cache manually
+    clearCache() {
+        this.cache.clear();
+        console.log('🗑️ Cache cleared');
+    }
+
+    // Get cache stats
+    getCacheStats() {
+        return {
+            size: this.cache.size,
+            keys: Array.from(this.cache.keys()),
+            requestCount: this.requestCount,
+            lastRequest: this.lastRequestTime
+        };
+    }
+
+    // Get service status
+    getServiceStatus() {
+        return {
+            backendUrl: this.apiBaseUrl,
+            cacheSize: this.cache.size,
+            totalRequests: this.requestCount,
+            usingMongoDB: true,
+            googleApiDisabled: true
+        };
+    }
+
+    // Test backend connection
+    async testConnection() {
+        try {
+            console.log('🔧 Testing connection to your backend...');
+            
+            const response = await fetch(`${this.apiBaseUrl.replace('/api', '')}/health`);
+            
+            if (!response.ok) {
+                throw new Error(`Backend not responding: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            console.log('✅ Backend connection successful:', result.message);
+            return { connected: true, message: result.message };
+
+        } catch (error) {
+            console.error('❌ Backend connection failed:', error);
+            return { connected: false, error: error.message };
+        }
+    }
+
+    // Get categories from your backend
+    async getCategories() {
+        try {
+            console.log('📂 Fetching categories from your MongoDB...');
+            
+            const response = await fetch(`${this.apiBaseUrl}/categories`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.message || 'Failed to fetch categories');
+            }
+
+            console.log(`✅ Fetched ${result.data.length} categories from your database`);
+            return result.data;
+
+        } catch (error) {
+            console.error('❌ Failed to fetch categories:', error);
+            
+            // Return default categories as fallback
+            return [
+                { name: 'pharmacy', displayName: { en: 'Pharmacies', ar: 'صيدليات' }, icon: '💊' },
+                { name: 'restaurant', displayName: { en: 'Restaurants', ar: 'مطاعم' }, icon: '🍽️' },
+                { name: 'grocery', displayName: { en: 'Grocery Stores', ar: 'بقالات' }, icon: '🛒' },
+                { name: 'hospital', displayName: { en: 'Hospitals', ar: 'مستشفيات' }, icon: '🏥' }
+            ];
+        }
+    }
+
+    // Method to switch backend URL (useful for testing)
+    setBackendUrl(url) {
+        this.apiBaseUrl = url;
+        this.clearCache();
+        console.log(`🔄 Backend URL changed to: ${url}`);
+    }
+}
+/* google api approach 
 import { GoogleMapsService } from './googleMapsService.js';
 import { mockServices } from '../data/mockData.js';
 import { CONFIG } from '../config/config.js';
@@ -266,3 +589,4 @@ export class DataService {
         return this.useRealData && CONFIG.GOOGLE_MAPS_API_KEY && this.googleMaps.isApiLoaded();
     }
 }
+    */

@@ -70,7 +70,7 @@ exports.getNearbyServices = async (req, res) => {
   }
 };
 
-// GET /api/services/search - Text search services
+// GET /api/services/search - Text search services (FIXED VERSION)
 exports.searchServices = async (req, res) => {
   try {
     const { q, lat, lng, radius = 10000, limit = 50 } = req.query;
@@ -82,9 +82,17 @@ exports.searchServices = async (req, res) => {
       });
     }
 
+    console.log(`🔍 Searching for: "${q}"`);
+
+    // Build search query - use regex instead of text search for better Arabic support
     let query = {
       status: 'active',
-      $text: { $search: q }
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { 'address.full': { $regex: q, $options: 'i' } },
+        { category: { $regex: q, $options: 'i' } }
+      ]
     };
 
     // Add location filter if coordinates provided
@@ -100,9 +108,13 @@ exports.searchServices = async (req, res) => {
       };
     }
 
+    console.log('🔍 Search query:', JSON.stringify(query, null, 2));
+
     const services = await Service.find(query)
       .limit(parseInt(limit))
       .lean();
+
+    console.log(`✅ Found ${services.length} services`);
 
     // Transform for API response
     const transformedServices = services.map(service => {
@@ -136,10 +148,11 @@ exports.searchServices = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error searching services:', error);
+    console.error('❌ Search error details:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while searching services'
+      message: 'Server error while searching services',
+      error: error.message // Add error details for debugging
     });
   }
 };

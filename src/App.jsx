@@ -1,4 +1,3 @@
-//
 import { useState, useEffect } from 'preact/hooks';
 import { SearchBar } from './components/SearchBar';
 import { ServiceFilters } from './components/ServiceFilters';
