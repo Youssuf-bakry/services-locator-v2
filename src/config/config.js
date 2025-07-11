@@ -4,7 +4,7 @@
 const getBackendUrl = () => {
     // Production: Use your Render backend URL
     if (window.location.hostname !== 'localhost') {
-        return import.meta.env.VITE_BACKEND_URL || 'https://dawwarli-backend.onrender.com/api';
+        return import.meta.env.VITE_BACKEND_URL || 'https://dawwarli-backend.onrender.com';
     }
     
     // Development: Use localhost
@@ -18,7 +18,7 @@ export const CONFIG = {
     
     // Dynamic Backend API URL
     BACKEND_API_URL: getBackendUrl(),
-    BACKEND_HEALTH_URL: getBackendUrl().replace('/api', '/health'),
+    BACKEND_HEALTH_URL: getBackendUrl(),
     
     // Search Configuration
     DEFAULT_SEARCH_RADIUS: 10000, // 10km radius
