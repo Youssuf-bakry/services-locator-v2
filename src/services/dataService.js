@@ -5,7 +5,7 @@ import { mockServices } from '../data/mockData.js';
 export class DataService {
     constructor() {
         // Your backend API URL
-        this.apiBaseUrl = CONFIG.BACKEND_API_URL || 'http://localhost:5000/api';
+        this.apiBaseUrl = CONFIG.BACKEND_API_URL || 'https://dawwarli-backend.onrender.com/api';
         this.cache = new Map();
         this.cacheTimeout = 10 * 60 * 1000; // 10 minutes
         

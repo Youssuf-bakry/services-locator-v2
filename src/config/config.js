@@ -4,7 +4,7 @@
 const getBackendUrl = () => {
     // Production: Use your Render backend URL
     if (window.location.hostname !== 'localhost') {
-        return import.meta.env.VITE_BACKEND_URL || 'https://dawwarli-backend.onrender.com/api';
+        return 'https://dawwarli-backend.onrender.com/api';
     }
     
     // Development: Use localhost
