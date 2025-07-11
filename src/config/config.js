@@ -1,37 +1,49 @@
-// Updated to use MongoDB backend instead of Google API
+// src/config/config.js - Final production configuration
+
+// Determine the backend URL based on environment
+const getBackendUrl = () => {
+    // Production: Use your Render backend URL
+    if (window.location.hostname !== 'localhost') {
+        return import.meta.env.VITE_BACKEND_URL || 'https://dawwarli-backend.onrender.com/api';
+    }
+    
+    // Development: Use localhost
+    return 'http://localhost:5000/api';
+};
 
 export const CONFIG = {
-    // Disable Google Maps API (we're using our own data now!)
+    // Disable Google Maps API (we're using our own MongoDB data)
     GOOGLE_MAPS_API_KEY: null,
     USE_GOOGLE_API: false,
     
-    // Your MongoDB Backend API
-    BACKEND_API_URL: 'http://localhost:5000/api',
-    BACKEND_HEALTH_URL: 'http://localhost:5000/health',
+    // Dynamic Backend API URL
+    BACKEND_API_URL: getBackendUrl(),
+    BACKEND_HEALTH_URL: getBackendUrl().replace('/api', '/health'),
     
     // Search Configuration
-    DEFAULT_SEARCH_RADIUS: 10000, // 10km radius (increased from 5km)
+    DEFAULT_SEARCH_RADIUS: 10000, // 10km radius
     MAX_SEARCH_RADIUS: 50000, // 50km max radius
     
-    // Default location (October City, Egypt)
+    // Default location (Saudi Arabia - will use user's actual GPS when available)
     DEFAULT_CITY_CENTER: {
-        lat: 29.9792, // October City coordinates
-        lng: 30.9754
+        lat: 26.3006, // Your Saudi coordinates
+        lng: 50.2081
     },
     
     // API Configuration
     MAX_REQUESTS_PER_MINUTE: 60,
     CACHE_DURATION: 10 * 60 * 1000, // 10 minutes
-    REQUEST_TIMEOUT: 10000, // 10 seconds
+    REQUEST_TIMEOUT: 15000, // 15 seconds (increased for mobile)
     
     // Environment detection
     IS_DEVELOPMENT: import.meta.env.DEV,
     IS_PRODUCTION: import.meta.env.PROD,
     
     // App settings
-    APP_NAME: 'City Services Locator',
-    APP_VERSION: '2.0.0', // Updated version for MongoDB backend
-    LOCATION: 'October City, Egypt',
+    APP_NAME: 'Dawwarli - دوارلي',
+    APP_VERSION: '2.0.0',
+    LOCATION: 'Saudi Arabia - المملكة العربية السعودية',
+    DESCRIPTION: 'Find nearby services in Saudi Arabia',
     
     // Feature flags
     FEATURES: {
@@ -39,8 +51,9 @@ export const CONFIG = {
         ENABLE_GEOLOCATION: true,
         ENABLE_SEARCH: true,
         ENABLE_CATEGORIES: true,
-        ENABLE_ADMIN_PANEL: false, // Set to true when you build admin panel
-        DEBUG_MODE: import.meta.env.DEV
+        ENABLE_ADMIN_PANEL: false,
+        DEBUG_MODE: import.meta.env.DEV,
+        MOBILE_OPTIMIZED: true
     },
     
     // UI Configuration
@@ -67,57 +80,20 @@ export const isFeatureEnabled = (featureName) => {
 };
 
 // Log configuration
-if (CONFIG.IS_DEVELOPMENT) {
-    console.log('🔧 App Configuration:');
-    console.log('   📍 Location:', CONFIG.LOCATION);
-    console.log('   🗄️ Using MongoDB Backend:', isBackendEnabled());
-    console.log('   🚫 Google API Disabled:', !CONFIG.USE_GOOGLE_API);
-    console.log('   🔗 Backend URL:', CONFIG.BACKEND_API_URL);
-    console.log('   🎯 Default Center:', CONFIG.DEFAULT_CITY_CENTER);
+console.log('🔧 Dawwarli Configuration:');
+console.log('   🌍 Environment:', CONFIG.IS_PRODUCTION ? 'Production' : 'Development');
+console.log('   📍 Target Location:', CONFIG.LOCATION);
+console.log('   🗄️ Backend API:', CONFIG.BACKEND_API_URL);
+console.log('   🚫 Google API:', CONFIG.USE_GOOGLE_API ? 'Enabled' : 'Disabled (Using MongoDB)');
+console.log('   📱 Mobile Optimized:', CONFIG.FEATURES.MOBILE_OPTIMIZED);
+
+// Test backend connection on load (production only)
+if (CONFIG.IS_PRODUCTION) {
+    fetch(CONFIG.BACKEND_HEALTH_URL)
+        .then(res => res.json())
+        .then(data => {
+            console.log('✅ Backend Health:', data.message);
+            console.log('📊 Backend Version:', data.version);
+        })
+        .catch(err => console.log('❌ Backend Health Check Failed:', err.message));
 }
-
-//google maps api
-/*const getApiKey = () => {
-
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    
-
-    
-    if (!apiKey) {
-        console.error('❌ Google Maps API key not found. Please check your environment variables.');
-        return null;
-    }
-    
-    // Basic validation
-    if (!apiKey.startsWith('AIza')) {
-        console.warn('⚠️Google Maps API key format seems incorrect');
-    }else {
-        console.log('✅ Google Maps API key configured successfully');
-    }
-    
-    return apiKey;
-};
-
-export const CONFIG = {
-    GOOGLE_MAPS_API_KEY: getApiKey(),
-    DEFAULT_SEARCH_RADIUS: 5000, // 5km radius
-    MAX_SEARCH_RADIUS: 50000, // 50km max radius
-    DEFAULT_CITY_CENTER: {
-       lat: 30.06263, //cairo
-        lng: 31.24967
-    },
-    
-    // API Rate limiting
-    MAX_REQUESTS_PER_MINUTE: 60,
-    CACHE_DURATION: 10 * 60 * 1000, // 10 minutes
-    
-    // Environment detection
-    IS_DEVELOPMENT: import.meta.env.DEV,
-    IS_PRODUCTION: import.meta.env.PROD,
-    
-    // App settings
-    APP_NAME: 'City Services Locator',
-    APP_VERSION: '1.0.0'
-};
-
-*/

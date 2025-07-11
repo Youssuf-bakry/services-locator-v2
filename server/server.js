@@ -16,24 +16,39 @@ if (process.env.MONGODB_URI) {
   console.log('⚠️ MongoDB URI not found, running without database');
 }
 
+// Trust proxy for Render deployment
+app.set('trust proxy', 1);
+
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false
+}));
 app.use(compression());
 
-// CORS configuration - Updated to allow multiple origins
+// CORS configuration for production
 const allowedOrigins = [
   'http://localhost:3000',           // Local development
   'http://localhost:5173',           // Vite dev server
   'https://dawwarli.netlify.app',    // Your Netlify deployment
-  process.env.FRONTEND_URL           // Environment variable
-].filter(Boolean); // Remove undefined values
+  process.env.FRONTEND_URL,          // Environment variable
+  /^https:\/\/.*\.netlify\.app$/,    // All Netlify preview URLs
+  /^https:\/\/.*\.ngrok\.io$/        // Allow ngrok for testing
+].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check exact matches
+    if (allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    })) {
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
@@ -42,17 +57,19 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
 }));
 
-// Rate limiting
+// Rate limiting - more restrictive in production
 const limiter = rateLimit({
   windowMs: (process.env.API_WINDOW_MINUTES || 15) * 60 * 1000,
-  max: process.env.API_RATE_LIMIT || 100,
+  max: process.env.API_RATE_LIMIT || 200, // Increased for mobile testing
   message: {
     success: false,
     message: 'Too many requests, please try again later'
-  }
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 app.use('/api/', limiter);
 
@@ -61,48 +78,75 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Logging
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
 }
 
-// Health check endpoint
+// Health check endpoint - important for Render
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'City Services API is running',
+    message: 'Dawwarli API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    allowedOrigins: allowedOrigins
+    version: '2.0.0',
+    database: process.env.MONGODB_URI ? 'Connected' : 'Not configured',
+    allowedOrigins: allowedOrigins.length
   });
 });
 
-// API Routes - only load if files exist
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to Dawwarli City Services API 🇸🇦',
+    version: '2.0.0',
+    endpoints: {
+      health: '/health',
+      services: '/api/services',
+      categories: '/api/categories',
+      admin: '/api/admin'
+    },
+    features: [
+      'Saudi Arabia Location Support',
+      'Arabic Search',
+      'Mobile Optimized',
+      'Real-time Location Detection'
+    ]
+  });
+});
+
+// API Routes
 try {
   app.use('/api/services', require('./routes/services'));
   console.log('✅ Services routes loaded');
 } catch (error) {
-  console.log('⚠️ Services routes not found');
+  console.log('⚠️ Services routes not found:', error.message);
 }
 
 try {
   app.use('/api/categories', require('./routes/categories'));
   console.log('✅ Categories routes loaded');
 } catch (error) {
-  console.log('⚠️ Categories routes not found');
+  console.log('⚠️ Categories routes not found:', error.message);
 }
 
 try {
   app.use('/api/admin', require('./routes/admin'));
   console.log('✅ Admin routes loaded');
 } catch (error) {
-  console.log('⚠️ Admin routes not found');
+  console.log('⚠️ Admin routes not found:', error.message);
 }
 
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'Route not found',
+    path: req.originalUrl,
+    method: req.method
   });
 });
 
@@ -110,27 +154,28 @@ app.use('*', (req, res) => {
 app.use((error, req, res, next) => {
   console.error('Global error:', error);
   
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
   res.status(error.status || 500).json({
     success: false,
     message: error.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    ...(isDevelopment && { 
+      stack: error.stack,
+      details: error 
+    })
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Dawwarli Backend running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌍 Allowed origins:`, allowedOrigins);
+  console.log(`🌍 CORS origins: ${allowedOrigins.length} configured`);
   
   if (!process.env.MONGODB_URI) {
-    console.log('');
-    console.log('💡 To enable database features:');
-    console.log('   1. Set up MongoDB Atlas');
-    console.log('   2. Add MONGODB_URI to your .env file');
-    console.log('   3. Restart the server');
+    console.log('⚠️ MongoDB URI missing - set MONGODB_URI environment variable');
   }
 });
 
