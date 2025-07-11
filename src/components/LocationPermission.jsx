@@ -1,200 +1,199 @@
 //for mobile
-export class LocationService {
-    constructor() {
-        this.watchId = null;
-        this.lastKnownLocation = null;
-        this.permissionStatus = null;
-    }
-    
-    async getCurrentPosition() {
-        // Check if geolocation is supported
-        if (!navigator.geolocation) {
-            throw new Error('Geolocation is not supported by this browser');
-        }
+import { useState, useEffect } from 'preact/hooks';
+import { LocationService } from '../services/locationService';
 
-        // Check if we're on HTTPS (required for mobile)
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-            console.warn('⚠️ Geolocation requires HTTPS on mobile devices');
-        }
+const locationService = new LocationService();
 
-        return new Promise((resolve, reject) => {
-            // Enhanced options for better mobile compatibility
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 15000,        // Increased timeout for mobile
-                maximumAge: 5 * 60 * 1000  // Accept location up to 5 minutes old
-            };
+export const LocationPermission = ({ onLocationGranted }) => {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [locationInfo, setLocationInfo] = useState(null);
+    const [permissionStatus, setPermissionStatus] = useState('unknown');
 
-            console.log('📍 Requesting location with options:', options);
-            
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const location = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        accuracy: position.coords.accuracy,
-                        timestamp: position.timestamp
-                    };
-                    
-                    this.lastKnownLocation = location;
-                    console.log('✅ Location obtained:', location);
-                    resolve(location);
-                },
-                (error) => {
-                    console.error('❌ Location error:', error);
-                    
-                    // Enhanced error handling
-                    const errorDetails = {
-                        code: error.code,
-                        message: error.message,
-                        description: this.getLocationErrorDescription(error.code),
-                        isHttps: window.location.protocol === 'https:',
-                        userAgent: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
-                    };
-                    
-                    console.error('📍 Location error details:', errorDetails);
-                    
-                    // Try fallback strategies
-                    if (this.lastKnownLocation) {
-                        console.log('🔄 Using last known location');
-                        resolve(this.lastKnownLocation);
-                    } else {
-                        reject(new Error(`Location access denied: ${errorDetails.description}`));
-                    }
-                },
-                options
-            );
-        });
-    }
+    useEffect(() => {
+        checkInitialStatus();
+    }, []);
 
-    getLocationErrorDescription(code) {
-        switch (code) {
-            case 1:
-                return 'Permission denied - User blocked location access. Please enable location in browser settings.';
-            case 2:
-                return 'Position unavailable - GPS or network location services are not available.';
-            case 3:
-                return 'Timeout - Location request took too long. Please try again.';
-            default:
-                return 'Unknown geolocation error occurred.';
-        }
-    }
+    const checkInitialStatus = async () => {
+        const info = locationService.getLocationInfo();
+        setLocationInfo(info);
+        
+        const permission = await locationService.checkPermissionStatus();
+        setPermissionStatus(permission);
+        
+        console.log('📍 Initial location info:', info);
+        console.log('📍 Permission status:', permission);
+    };
 
-    // Check if geolocation permission is available
-    async checkPermissionStatus() {
-        if (!navigator.permissions) {
-            return 'unknown';
-        }
+    const handleEnableLocation = async () => {
+        setIsLoading(true);
+        setError(null);
 
         try {
-            const permission = await navigator.permissions.query({ name: 'geolocation' });
-            this.permissionStatus = permission.state;
+            console.log('📍 Requesting location...');
+            const location = await locationService.requestLocationWithUI();
             
-            permission.addEventListener('change', () => {
-                this.permissionStatus = permission.state;
-                console.log('📍 Geolocation permission changed:', permission.state);
-            });
+            console.log('✅ Location obtained:', location);
+            onLocationGranted(location);
             
-            return permission.state;
         } catch (error) {
-            console.warn('Could not check geolocation permission:', error);
-            return 'unknown';
-        }
-    }
-
-    // Enhanced mobile-friendly location request
-    async requestLocationWithUI() {
-        try {
-            // Check permission first
-            const permissionStatus = await this.checkPermissionStatus();
-            console.log('📍 Permission status:', permissionStatus);
-
-            if (permissionStatus === 'denied') {
-                throw new Error('Location permission was previously denied. Please enable it in browser settings and refresh the page.');
-            }
-
-            // For mobile, show user-friendly message before requesting
-            if (this.isMobileDevice()) {
-                console.log('📱 Mobile device detected - using mobile-optimized location request');
-            }
-
-            const location = await this.getCurrentPosition();
-            return location;
-
-        } catch (error) {
-            console.error('❌ Location request failed:', error.message);
+            console.error('❌ Location request failed:', error);
             
-            // Provide helpful error messages for users
+            // Set user-friendly error message
+            let errorMessage = error.message;
+            
             if (error.message.includes('denied')) {
-                throw new Error('Location access is required to find nearby services. Please enable location access and try again.');
-            } else if (error.message.includes('unavailable')) {
-                throw new Error('Could not determine your location. Please check your GPS/network connection.');
-            } else {
-                throw error;
-            }
-        }
-    }
-
-    isMobileDevice() {
-        return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    }
-
-    isHTTPS() {
-        return window.location.protocol === 'https:';
-    }
-
-    // Get location info for debugging
-    getLocationInfo() {
-        return {
-            supported: !!navigator.geolocation,
-            permissionApi: !!navigator.permissions,
-            permissionStatus: this.permissionStatus,
-            isHttps: this.isHTTPS(),
-            isMobile: this.isMobileDevice(),
-            userAgent: navigator.userAgent,
-            lastKnownLocation: this.lastKnownLocation
-        };
-    }
-    
-    watchPosition(callback) {
-        if (!navigator.geolocation) {
-            throw new Error('Geolocation is not supported');
-        }
-        
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 5 * 60 * 1000
-        };
-        
-        this.watchId = navigator.geolocation.watchPosition(
-            (position) => {
-                const location = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    accuracy: position.coords.accuracy
-                };
-                this.lastKnownLocation = location;
-                callback(location);
-            },
-            (error) => {
-                console.error('Location watch error:', error);
-                // Still call callback with last known location if available
-                if (this.lastKnownLocation) {
-                    callback(this.lastKnownLocation);
+                if (!locationInfo?.isHttps) {
+                    errorMessage = 'Location access requires HTTPS. Please use the deployed version of the app.';
+                } else {
+                    errorMessage = 'Location access denied. Please enable location in your browser settings and refresh the page.';
                 }
-            },
-            options
-        );
-    }
-    
-    stopWatching() {
-        if (this.watchId) {
-            navigator.geolocation.clearWatch(this.watchId);
-            this.watchId = null;
+            } else if (error.message.includes('unavailable')) {
+                errorMessage = 'Could not get your location. Please check your GPS and network connection.';
+            } else if (error.message.includes('timeout')) {
+                errorMessage = 'Location request timed out. Please try again.';
+            }
+            
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
         }
-    }
-}
+    };
+
+    const handleSkipLocation = () => {
+        console.log('📍 User chose to skip location');
+        // Use default Saudi coordinates as fallback
+        const defaultLocation = {
+            lat: 26.3006,
+            lng: 50.2081,
+            isDefault: true
+        };
+        onLocationGranted(defaultLocation);
+    };
+
+    const dismissError = () => {
+        setError(null);
+    };
+
+    const getLocationAdvice = () => {
+        if (!locationInfo) return null;
+
+        const advice = [];
+        
+        if (!locationInfo.isHttps) {
+            advice.push({
+                icon: '🔒',
+                title: 'HTTPS Required',
+                message: 'Location access requires a secure connection. Please use the deployed app version.',
+                type: 'error'
+            });
+        }
+        
+        if (locationInfo.isMobile && permissionStatus === 'denied') {
+            advice.push({
+                icon: '📱',
+                title: 'Mobile Settings',
+                message: 'Go to browser settings → Site permissions → Location → Allow',
+                type: 'warning'
+            });
+        }
+        
+        if (!locationInfo.supported) {
+            advice.push({
+                icon: '❌',
+                title: 'Not Supported',
+                message: 'Your browser does not support location services.',
+                type: 'error'
+            });
+        }
+
+        return advice;
+    };
+
+    const advice = getLocationAdvice();
+
+    return (
+        <div className="location-permission">
+            <div className="permission-card">
+                <h3>📍 Enable Location</h3>
+                <p>Allow location access to find services near you in Saudi Arabia</p>
+                
+                {/* Location Info Debug (only in development) */}
+                {locationInfo && import.meta.env.DEV && (
+                    <div className="location-debug">
+                        <details>
+                            <summary>🔧 Debug Info</summary>
+                            <div className="debug-info">
+                                <div>HTTPS: {locationInfo.isHttps ? '✅' : '❌'}</div>
+                                <div>Mobile: {locationInfo.isMobile ? '✅' : '❌'}</div>
+                                <div>Supported: {locationInfo.supported ? '✅' : '❌'}</div>
+                                <div>Permission: {permissionStatus}</div>
+                            </div>
+                        </details>
+                    </div>
+                )}
+                
+                {/* Advice Section */}
+                {advice && advice.length > 0 && (
+                    <div className="location-advice">
+                        {advice.map((item, index) => (
+                            <div key={index} className={`advice-item ${item.type}`}>
+                                <span className="advice-icon">{item.icon}</span>
+                                <div className="advice-content">
+                                    <strong>{item.title}:</strong> {item.message}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                <div className="permission-buttons">
+                    <button 
+                        className={`permission-btn primary ${isLoading ? 'loading' : ''}`}
+                        onClick={handleEnableLocation}
+                        disabled={isLoading || !locationInfo?.supported}
+                    >
+                        {isLoading ? 'Getting Location...' : 'Enable Location'}
+                    </button>
+                    
+                    <button 
+                        className="permission-btn secondary"
+                        onClick={handleSkipLocation}
+                    >
+                        Use Default Location
+                    </button>
+                </div>
+
+                {error && (
+                    <div className="error-message">
+                        <div className="error-content">
+                            <span className="error-text">{error}</span>
+                            <button 
+                                className="dismiss-btn"
+                                onClick={dismissError}
+                                title="Dismiss"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        {/* Additional help for common errors */}
+                        {error.includes('denied') && locationInfo?.isHttps && (
+                            <div className="error-help">
+                                <h4>How to enable location:</h4>
+                                <ul>
+                                    <li>Click the location icon 🌍 in your browser's address bar</li>
+                                    <li>Select "Allow" for location access</li>
+                                    <li>Refresh the page and try again</li>
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // import { useState } from 'preact/hooks';
 
