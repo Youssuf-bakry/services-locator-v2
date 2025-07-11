@@ -12,7 +12,7 @@ export const MapView = ({ userLocation, services = [] }) => {
         if (!mapRef.current || mapInstanceRef.current) return;
 
         // Default center (Riyadh coordinates)
-        const defaultCenter = [24.7136, 46.6753];
+        const defaultCenter = [29.889918, 30.913130];
         
         mapInstanceRef.current = L.map(mapRef.current).setView(defaultCenter, 13);
         

@@ -8,7 +8,7 @@ export class DataService {
         this.googleMaps = new GoogleMapsService();
         this.mockServices = mockServices;
         this.useRealData = !!CONFIG.GOOGLE_MAPS_API_KEY; // Only use real data if API key is available
-        this.cache = new Map(); // Cache results
+        this.cache = new Map(); 
         this.cacheTimeout = CONFIG.CACHE_DURATION;
         
         // Track API usage for debugging
