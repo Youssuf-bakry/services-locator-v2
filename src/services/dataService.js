@@ -1,10 +1,11 @@
 // My MongoDB approach
+import { CONFIG } from '../config/config.js';
 import { mockServices } from '../data/mockData.js';
 
 export class DataService {
     constructor() {
         // Your backend API URL
-        this.apiBaseUrl = 'http://localhost:5000/api';
+        this.apiBaseUrl = CONFIG.BACKEND_API_URL || 'http://localhost:5000/api';
         this.cache = new Map();
         this.cacheTimeout = 10 * 60 * 1000; // 10 minutes
         
