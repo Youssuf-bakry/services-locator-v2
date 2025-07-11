@@ -8,6 +8,7 @@ import { WelcomeMessage } from './components/WelcomeMessage';
 import { LoadingState } from './components/LoadingState';
 import { ErrorState } from './components/ErrorState';
 import { NoResultsState } from './components/NoResultsState';
+import { AdminPanel } from './components/AdminPanel'; // New import
 import { DataService } from './services/dataService';
 import { LocationService } from './services/locationService';
 import { calculateDistance } from './utils/helpers';
@@ -17,8 +18,32 @@ const dataService = new DataService();
 const locationService = new LocationService();
 
 export const App = () => {
-    const [showMobileDebug, setShowMobileDebug] = useState(false)
+    // Check if we're on admin route
+    const isAdminRoute = window.location.pathname === '/admin';
+    
+    // If admin route, render admin panel
+    if (isAdminRoute) {
+        return (
+            <div>
+                {/* Admin Header */}
+                <div className="bg-red-600 text-white p-4">
+                    <div className="max-w-6xl mx-auto flex justify-between items-center">
+                        <h1 className="text-xl font-bold">🔧 Admin Mode</h1>
+                        <button 
+                            onClick={() => window.location.href = '/'}
+                            className="bg-red-700 hover:bg-red-800 px-4 py-2 rounded transition-colors"
+                        >
+                            ← Back to Main App
+                        </button>
+                    </div>
+                </div>
+                <AdminPanel />
+            </div>
+        );
+    }
 
+    // Regular app state (your existing code)
+    const [showMobileDebug, setShowMobileDebug] = useState(false)
     const [userLocation, setUserLocation] = useState(null);
     const [services, setServices] = useState([]);
     const [filteredServices, setFilteredServices] = useState([]);
@@ -33,7 +58,8 @@ export const App = () => {
     useEffect(() => {
         getUserLocation();
     }, []);
- useEffect(() => {
+    
+    useEffect(() => {
         if (searchQuery.trim() || currentFilter !== 'all') {
             performSearch();
         } else {
@@ -234,6 +260,7 @@ export const App = () => {
         );
     };
 
+    // Regular app render (your existing JSX)
     return (
         <div id="app">
             <header className="header">
@@ -274,31 +301,33 @@ export const App = () => {
                     {renderMainContent()}
                 </div>
             </main>
-           <button 
-    onClick={() => setShowMobileDebug(true)}
-    style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        background: '#ff6b6b',
-        color: 'white',
-        border: 'none',
-        borderRadius: '50%',
-        width: '60px',
-        height: '60px',
-        fontSize: '24px',
-        cursor: 'pointer',
-        zIndex: 1000,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-    }}
-    title="Mobile Debug"
->
-    🔧
-</button>
-{/* Mobile Debug Component */}
-{showMobileDebug && (
-    <MobileDebug onClose={() => setShowMobileDebug(false)} />
-)}
+            
+            <button 
+                onClick={() => setShowMobileDebug(true)}
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '60px',
+                    height: '60px',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                }}
+                title="Mobile Debug"
+            >
+                🔧
+            </button>
+            
+            {/* Mobile Debug Component */}
+            {showMobileDebug && (
+                <MobileDebug onClose={() => setShowMobileDebug(false)} />
+            )}
         </div>
     );
 };
