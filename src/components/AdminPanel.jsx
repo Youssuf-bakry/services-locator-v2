@@ -3,9 +3,11 @@ import { useState, useEffect, useRef } from 'react';
 // Inline API service for admin panel
 const adminApiService = {
     async createService(serviceData) {
-        const apiUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5000/api'
-            : 'https://dawwarli-backend.onrender.com/api';
+        // Force use deployed backend for testing
+        const apiUrl = 'https://dawwarli-backend.onrender.com/api';
+        
+        console.log('🔍 Sending service data to:', apiUrl);
+        console.log('📦 Service data:', serviceData);
             
         const response = await fetch(`${apiUrl}/admin/services`, {
             method: 'POST',
@@ -15,11 +17,20 @@ const adminApiService = {
             body: JSON.stringify(serviceData)
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
         const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
+        if (!response.ok) {
+            console.error('❌ Backend error details:', result);
+            console.error('🔍 Validation errors:', result.errors);
+            
+            if (result.errors && result.errors.length > 0) {
+                const errorMessages = result.errors.map(err => `${err.field || err.path}: ${err.message || err.msg}`).join(', ');
+                throw new Error(`Validation failed: ${errorMessages}`);
+            }
+            
+            throw new Error(`HTTP ${response.status}: ${result.message || response.statusText}`);
+        }
         
         if (!result.success) {
             throw new Error(result.message || 'Failed to create service');
@@ -316,11 +327,42 @@ export const AdminPanel = () => {
         setIsLoading(true);
         
         try {
-            const serviceData = {
+            // Clean up the form data before sending
+            const cleanedFormData = {
                 ...formData,
-                latitude: selectedLocation.lat,
-                longitude: selectedLocation.lng
+                // Remove empty string values that should be null/undefined
+                subcategory: formData.subcategory.trim() || undefined,
+                description: formData.description.trim() || undefined,
+                
+                // Clean up address - remove empty fields
+                address: {
+                    full: formData.address.full.trim(),
+                    street: formData.address.street.trim() || undefined,
+                    district: formData.address.district.trim() || undefined,
+                    city: formData.address.city.trim() || undefined,
+                    governorate: formData.address.governorate.trim() || undefined,
+                    postalCode: formData.address.postalCode.trim() || undefined,
+                    country: formData.address.country.trim() || 'Saudi Arabia'
+                },
+                
+                // Clean up contact - remove empty emails/phones
+                contact: {
+                    phone: formData.contact.phone.trim() || undefined,
+                    mobile: formData.contact.mobile.trim() || undefined,
+                    whatsapp: formData.contact.whatsapp.trim() || undefined,
+                    email: formData.contact.email.trim() || undefined, // This was the issue!
+                    website: formData.contact.website.trim() || undefined
+                }
             };
+
+            const serviceData = {
+                ...cleanedFormData,
+                latitude: parseFloat(selectedLocation.lat),
+                longitude: parseFloat(selectedLocation.lng)
+            };
+
+            console.log('🔍 Preparing to send cleaned service data:', serviceData);
+            console.log('📍 Selected location:', selectedLocation);
 
             const result = await adminApiService.createService(serviceData);
             
@@ -380,8 +422,17 @@ export const AdminPanel = () => {
             }
             
         } catch (error) {
-            console.error('Error creating service:', error);
-            setMessage(`❌ Failed to create service: ${error.message}`);
+            console.error('❌ Error creating service:', error);
+            console.error('📊 Full error object:', error);
+            
+            // Show more helpful error messages
+            if (error.message.includes('Validation failed')) {
+                setMessage(`❌ ${error.message}`);
+            } else if (error.message.includes('HTTP 400')) {
+                setMessage('❌ Validation error: Please check all required fields are filled correctly');
+            } else {
+                setMessage(`❌ Failed to create service: ${error.message}`);
+            }
         } finally {
             setIsLoading(false);
         }
