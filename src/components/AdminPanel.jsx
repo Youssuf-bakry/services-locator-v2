@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import  React,{ useState, useEffect, useRef } from 'react';
 
 // Inline API service for admin panel
 const adminApiService = {
     async createService(serviceData) {
-        // Force use deployed backend for testing
         const apiUrl = 'https://dawwarli-backend.onrender.com/api';
         
         console.log('🔍 Sending service data to:', apiUrl);
@@ -77,8 +76,9 @@ export const AdminPanel = () => {
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [adminLocation, setAdminLocation] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [locationLoading, setLocationLoading] = useState(true);
     const [message, setMessage] = useState('');
-    const [categories, setCategories] = useState([]);
+    const [currentStep, setCurrentStep] = useState(1);
 
     // Form state with all Service model fields
     const [formData, setFormData] = useState({
@@ -216,10 +216,16 @@ export const AdminPanel = () => {
         initMap();
     }, []);
 
+    // Automatically get admin location on component mount
+    useEffect(() => {
+        getAdminLocation();
+    }, []);
+
     // Get admin's current location
     const getAdminLocation = async () => {
         try {
-            setMessage('📍 Getting your location...');
+            setLocationLoading(true);
+            setMessage('📍 Getting your location automatically...');
             const location = await adminLocationService.getCurrentPosition();
             setAdminLocation(location);
             
@@ -227,9 +233,22 @@ export const AdminPanel = () => {
                 map.setView([location.lat, location.lng], 15);
             }
             
-            setMessage(`✅ Your location: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`);
+            setMessage(`✅ Your location detected: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`);
         } catch (error) {
-            setMessage('❌ Could not get your location. Please click on the map to select a location.');
+            console.error('Location error:', error);
+            
+            // Handle specific location permission errors
+            if (error.message.includes('denied') || error.message.includes('Permission')) {
+                const alertMessage = '🚨 Location Access Required!\n\nPlease allow location access in your browser to automatically detect your position.\n\n• Click "Allow" when prompted\n• Check your browser settings if no prompt appears\n• You can also manually click on the map to select a location';
+                alert(alertMessage);
+                setMessage('❌ Location permission denied. Please allow location access or click on the map to select a location manually.');
+            } else if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+                setMessage('❌ Location request timed out. Please check your internet connection or click on the map to select a location.');
+            } else {
+                setMessage('❌ Could not get your location automatically. Please click on the map to select a location manually.');
+            }
+        } finally {
+            setLocationLoading(false);
         }
     };
 
@@ -274,20 +293,6 @@ export const AdminPanel = () => {
         }
     };
 
-    // Handle hours changes
-    const handleHoursChange = (day, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            hours: {
-                ...prev.hours,
-                [day]: {
-                    ...prev.hours[day],
-                    [field]: value
-                }
-            }
-        }));
-    };
-
     // Handle array changes (features, payment methods)
     const handleArrayChange = (field, value) => {
         setFormData(prev => {
@@ -308,7 +313,6 @@ export const AdminPanel = () => {
 
     // Submit service data
     const handleSubmit = async () => {
-        
         if (!selectedLocation) {
             setMessage('❌ Please select a location on the map or use your current location');
             return;
@@ -327,14 +331,10 @@ export const AdminPanel = () => {
         setIsLoading(true);
         
         try {
-            // Clean up the form data before sending
             const cleanedFormData = {
                 ...formData,
-                // Remove empty string values that should be null/undefined
                 subcategory: formData.subcategory.trim() || undefined,
                 description: formData.description.trim() || undefined,
-                
-                // Clean up address - remove empty fields
                 address: {
                     full: formData.address.full.trim(),
                     street: formData.address.street.trim() || undefined,
@@ -344,13 +344,11 @@ export const AdminPanel = () => {
                     postalCode: formData.address.postalCode.trim() || undefined,
                     country: formData.address.country.trim() || 'Saudi Arabia'
                 },
-                
-                // Clean up contact - remove empty emails/phones
                 contact: {
                     phone: formData.contact.phone.trim() || undefined,
                     mobile: formData.contact.mobile.trim() || undefined,
                     whatsapp: formData.contact.whatsapp.trim() || undefined,
-                    email: formData.contact.email.trim() || undefined, // This was the issue!
+                    email: formData.contact.email.trim() || undefined,
                     website: formData.contact.website.trim() || undefined
                 }
             };
@@ -360,9 +358,6 @@ export const AdminPanel = () => {
                 latitude: parseFloat(selectedLocation.lat),
                 longitude: parseFloat(selectedLocation.lng)
             };
-
-            console.log('🔍 Preparing to send cleaned service data:', serviceData);
-            console.log('📍 Selected location:', selectedLocation);
 
             const result = await adminApiService.createService(serviceData);
             
@@ -411,6 +406,7 @@ export const AdminPanel = () => {
             });
             
             setSelectedLocation(null);
+            setCurrentStep(1);
             
             // Clear map markers
             if (map && window.L) {
@@ -423,9 +419,7 @@ export const AdminPanel = () => {
             
         } catch (error) {
             console.error('❌ Error creating service:', error);
-            console.error('📊 Full error object:', error);
             
-            // Show more helpful error messages
             if (error.message.includes('Validation failed')) {
                 setMessage(`❌ ${error.message}`);
             } else if (error.message.includes('HTTP 400')) {
@@ -439,268 +433,359 @@ export const AdminPanel = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4">
-            <div className="max-w-6xl mx-auto">
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">🔧 Admin Panel</h1>
-                    <p className="text-gray-600 mb-4">Add new service locations to the database</p>
-                    
-                    {message && (
-                        <div className={`p-3 rounded-lg mb-4 ${
-                            message.includes('❌') ? 'bg-red-100 text-red-700' : 
-                            message.includes('✅') ? 'bg-green-100 text-green-700' : 
-                            'bg-blue-100 text-blue-700'
-                        }`}>
-                            {message}
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+            {/* Header */}
+            <div className="bg-white shadow-sm border-b border-gray-100">
+                <div className="max-w-7xl mx-auto px-4 py-4">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg text-white">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
                         </div>
-                    )}
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 font-arabic">Admin Panel</h1>
+                            <p className="text-gray-600 text-sm">Add new service locations to the database</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 py-8">
+                {/* Status Message */}
+                {message && (
+                    <div className={`mb-6 animate-fade-in rounded-xl p-4 ${
+                        message.includes('❌') ? 'bg-red-50 text-red-700 border border-red-200' : 
+                        message.includes('✅') ? 'bg-green-50 text-green-700 border border-green-200' : 
+                        'bg-blue-50 text-blue-700 border border-blue-200'
+                    }`}>
+                        <div className="flex items-center space-x-2">
+                            {message.includes('❌') && <span className="text-red-500 text-lg">❌</span>}
+                            {message.includes('✅') && <span className="text-green-500 text-lg">✅</span>}
+                            {!message.includes('❌') && !message.includes('✅') && <span className="text-blue-500 text-lg">ℹ️</span>}
+                            <span className="font-medium">{message}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Progress Steps */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-center space-x-8">
+                        <div className={`flex items-center space-x-2 ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                                {selectedLocation ? (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : '1'}
+                            </div>
+                            <span className="font-medium">Location</span>
+                        </div>
+                        <div className={`w-16 h-0.5 ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+                        <div className={`flex items-center space-x-2 ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                                2
+                            </div>
+                            <span className="font-medium">Service Info</span>
+                        </div>
+                        <div className={`w-16 h-0.5 ${currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+                        <div className={`flex items-center space-x-2 ${currentStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                                3
+                            </div>
+                            <span className="font-medium">Details</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Map Section */}
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h2 className="text-xl font-semibold mb-4">📍 Select Location</h2>
-                        
-                        <div className="flex gap-2 mb-4">
-                            <button
-                                onClick={getAdminLocation}
-                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                            >
-                                📍 Get My Location
-                            </button>
-                            
-                            {adminLocation && (
-                                <button
-                                    onClick={useAdminLocation}
-                                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                                >
-                                    ✅ Use My Location
-                                </button>
-                            )}
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <h2 className="text-lg font-semibold text-gray-900">Select Location</h2>
+                                </div>
+                                {locationLoading && (
+                                    <svg className="animate-spin w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                )}
+                            </div>
                         </div>
                         
-                        <div 
-                            ref={mapRef} 
-                            className="w-full h-96 border border-gray-300 rounded-lg"
-                            style={{ minHeight: '400px' }}
-                        />
-                        
-                        {selectedLocation && (
-                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <p className="text-sm text-green-700">
-                                    <strong>Selected coordinates:</strong><br/>
-                                    Latitude: {selectedLocation.lat.toFixed(6)}<br/>
-                                    Longitude: {selectedLocation.lng.toFixed(6)}
-                                </p>
-                            </div>
-                        )}
-                        
-                        <p className="text-sm text-gray-500 mt-2">
-                            💡 Click anywhere on the map to select a location for the new service
-                        </p>
+                        <div className="p-6">
+                            {adminLocation && (
+                                <div className="mb-4">
+                                    <button
+                                        onClick={useAdminLocation}
+                                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span>Use My Location</span>
+                                    </button>
+                                </div>
+                            )}
+                            
+                            <div 
+                                ref={mapRef} 
+                                className="w-full h-80 border border-gray-200 rounded-xl shadow-inner"
+                            />
+                            
+                            {selectedLocation && (
+                                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl animate-fade-in">
+                                    <div className="flex items-start space-x-3">
+                                        <div className="p-1.5 bg-green-100 rounded-lg">
+                                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-green-800">Selected Location</p>
+                                            <p className="text-sm text-green-600">
+                                                Lat: {selectedLocation.lat.toFixed(6)}, Lng: {selectedLocation.lng.toFixed(6)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <p className="text-sm text-gray-500 mt-4 flex items-center space-x-2">
+                                <span className="text-sm">💡</span>
+                                <span>Your location is detected automatically. Click on the map to select a different location.</span>
+                            </p>
+                        </div>
                     </div>
 
                     {/* Form Section */}
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                        <h2 className="text-xl font-semibold mb-4">📝 Service Information</h2>
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+                        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
+                            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                                <span className="text-base">📝</span>
+                                <span>Service Information</span>
+                            </h2>
+                        </div>
                         
-                        <div className="space-y-4">
+                        <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
                             {/* Basic Information */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Service Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="e.g., صيدلية النهدي - حي الخبر"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Category *
-                                </label>
-                                <select
-                                    value={formData.category}
-                                    onChange={(e) => handleInputChange('category', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    required
-                                >
-                                    {categoryOptions.map(cat => (
-                                        <option key={cat.value} value={cat.value}>
-                                            {cat.icon} {cat.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Description
-                                </label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    rows={3}
-                                    placeholder="Brief description of the service..."
-                                />
-                            </div>
-
-                            {/* Address */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Full Address *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.address.full}
-                                    onChange={(e) => handleInputChange('address.full', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Complete address including street, district, city"
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <input
-                                    type="text"
-                                    value={formData.address.city}
-                                    onChange={(e) => handleInputChange('address.city', e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="City / المدينة"
-                                />
-                                <input
-                                    type="text"
-                                    value={formData.address.governorate}
-                                    onChange={(e) => handleInputChange('address.governorate', e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Governorate / المحافظة"
-                                />
-                            </div>
-
-                            {/* Contact */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <input
-                                    type="tel"
-                                    value={formData.contact.phone}
-                                    onChange={(e) => handleInputChange('contact.phone', e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Phone / الهاتف"
-                                />
-                                <input
-                                    type="tel"
-                                    value={formData.contact.mobile}
-                                    onChange={(e) => handleInputChange('contact.mobile', e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Mobile / الجوال"
-                                />
-                            </div>
-
-                            {/* Features */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Features
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {featureOptions.map(feature => (
-                                        <label key={feature} className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.features.includes(feature)}
-                                                onChange={() => handleArrayChange('features', feature)}
-                                                className="mr-2"
-                                            />
-                                            <span className="text-sm">{feature.replace('_', ' ')}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Payment Methods */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Payment Methods
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {paymentOptions.map(payment => (
-                                        <label key={payment} className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.paymentMethods.includes(payment)}
-                                                onChange={() => handleArrayChange('paymentMethods', payment)}
-                                                className="mr-2"
-                                            />
-                                            <span className="text-sm">{payment}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Rating and Price */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Rating (0-5)
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Service Name *
                                     </label>
                                     <input
-                                        type="number"
-                                        min="0"
-                                        max="5"
-                                        step="0.1"
-                                        value={formData.rating}
-                                        onChange={(e) => handleInputChange('rating', parseFloat(e.target.value) || 0)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => handleInputChange('name', e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="e.g., صيدلية النهدي - حي الخبر"
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Price Level (1-4)
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Category *
                                     </label>
                                     <select
-                                        value={formData.priceLevel}
-                                        onChange={(e) => handleInputChange('priceLevel', parseInt(e.target.value))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        value={formData.category}
+                                        onChange={(e) => handleInputChange('category', e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                                     >
-                                        <option value={1}>$ - Inexpensive</option>
-                                        <option value={2}>$$ - Moderate</option>
-                                        <option value={3}>$$$ - Expensive</option>
-                                        <option value={4}>$$$$ - Very Expensive</option>
+                                        {categoryOptions.map(cat => (
+                                            <option key={cat.value} value={cat.value}>
+                                                {cat.icon} {cat.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
-                            </div>
 
-                            {/* 24 Hours Toggle */}
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="is24Hours"
-                                    checked={formData.is24Hours}
-                                    onChange={(e) => handleInputChange('is24Hours', e.target.checked)}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="is24Hours" className="text-sm font-medium text-gray-700">
-                                    Open 24 Hours
-                                </label>
-                            </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Description
+                                    </label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => handleInputChange('description', e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        rows={3}
+                                        placeholder="Brief description of the service..."
+                                    />
+                                </div>
 
-                            {/* Submit Button */}
+                                {/* Address */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Full Address *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.address.full}
+                                        onChange={(e) => handleInputChange('address.full', e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="Complete address including street, district, city"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        type="text"
+                                        value={formData.address.city}
+                                        onChange={(e) => handleInputChange('address.city', e.target.value)}
+                                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="City / المدينة"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={formData.address.governorate}
+                                        onChange={(e) => handleInputChange('address.governorate', e.target.value)}
+                                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="Governorate / المحافظة"
+                                    />
+                                </div>
+
+                                {/* Contact */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        type="tel"
+                                        value={formData.contact.phone}
+                                        onChange={(e) => handleInputChange('contact.phone', e.target.value)}
+                                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="Phone / الهاتف"
+                                    />
+                                    <input
+                                        type="tel"
+                                        value={formData.contact.mobile}
+                                        onChange={(e) => handleInputChange('contact.mobile', e.target.value)}
+                                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="Mobile / الجوال"
+                                    />
+                                </div>
+
+                                {/* Features */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                        Features
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {featureOptions.map(feature => (
+                                            <label key={feature} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors duration-200">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.features.includes(feature)}
+                                                    onChange={() => handleArrayChange('features', feature)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="text-sm text-gray-700">{feature.replace('_', ' ')}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Payment Methods */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                        Payment Methods
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {paymentOptions.map(payment => (
+                                            <label key={payment} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors duration-200">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.paymentMethods.includes(payment)}
+                                                    onChange={() => handleArrayChange('paymentMethods', payment)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="text-sm text-gray-700">{payment}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Rating and Price */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Rating (0-5)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="5"
+                                            step="0.1"
+                                            value={formData.rating}
+                                            onChange={(e) => handleInputChange('rating', parseFloat(e.target.value) || 0)}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Price Level
+                                        </label>
+                                        <select
+                                            value={formData.priceLevel}
+                                            onChange={(e) => handleInputChange('priceLevel', parseInt(e.target.value))}
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        >
+                                            <option value={1}>$ - Inexpensive</option>
+                                            <option value={2}>$$ - Moderate</option>
+                                            <option value={3}>$$$ - Expensive</option>
+                                            <option value={4}>$$$$ - Very Expensive</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 24 Hours Toggle */}
+                                <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="is24Hours"
+                                        checked={formData.is24Hours}
+                                        onChange={(e) => handleInputChange('is24Hours', e.target.checked)}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="is24Hours" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                                        Open 24 Hours
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="p-6 border-t border-gray-100 bg-gray-50">
                             <button
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={isLoading || !selectedLocation}
-                                className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
+                                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 ${
                                     isLoading || !selectedLocation
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
                                 }`}
                             >
-                                {isLoading ? '⏳ Creating Service...' : '💾 Create Service'}
+                                {isLoading ? (
+                                    <>
+                                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Creating Service...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-base">💾</span>
+                                        <span>Create Service</span>
+                                    </>
+                                )}
                             </button>
+                            {isLoading && (<div className='loading-spinner'></div>)}
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
+import InstallPrompt from './components/InstallPrompt';
+
 import { SearchBar } from './components/SearchBar';
 import { ServiceFilters } from './components/ServiceFilters';
 import { LocationPermission } from './components/LocationPermission';
@@ -302,7 +304,7 @@ export const App = () => {
                 </div>
             </main>
             
-            <button 
+            {/* <button 
                 onClick={() => setShowMobileDebug(true)}
                 style={{
                     position: 'fixed',
@@ -322,12 +324,15 @@ export const App = () => {
                 title="Mobile Debug"
             >
                 🔧
-            </button>
+            </button> */}
             
-            {/* Mobile Debug Component */}
+            {/* Mobile Debug Component
             {showMobileDebug && (
                 <MobileDebug onClose={() => setShowMobileDebug(false)} />
-            )}
+            )} */}
+
+            <InstallPrompt />
+
         </div>
     );
 };

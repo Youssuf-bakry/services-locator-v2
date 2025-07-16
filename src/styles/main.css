@@ -1,4 +1,13 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700&display=swap');
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+/* Custom CSS for our AdminPanel */
+
 /* Reset and Base Styles */
 * {
     margin: 0;
@@ -13,6 +22,49 @@ body {
     color: #333;
 }
 
+ .loader {
+    width: 45px;
+    aspect-ratio: 0.75;
+    --c: no-repeat linear-gradient(theme(colors.stone.800) 0 0);
+    background: var(--c) 0% 50%, var(--c) 50% 50%, var(--c) 100% 50%;
+    background-size: 20% 50%;
+    animation: loading 1s infinite linear;
+  }
+
+/* Arabic font support */
+.font-arabic {
+  font-family: 'Cairo', 'Noto Sans Arabic', sans-serif;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Custom gradient backgrounds */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+}
+
+.gradient-danger {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+}
 #app {
     max-width: 1200px;
     margin: 0 auto;
