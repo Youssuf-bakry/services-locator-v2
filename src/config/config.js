@@ -42,8 +42,8 @@ export const CONFIG = {
     // App settings
     APP_NAME: 'Dawwarli - دوارلي',
     APP_VERSION: '2.0.0',
-    LOCATION: 'Saudi Arabia - المملكة العربية السعودية',
-    DESCRIPTION: 'Find nearby services in Saudi Arabia',
+    LOCATION: 'OCTOBER CITY - جمهورية مصر العربية',
+    DESCRIPTION: 'Find nearby services in Egypt',
     
     // Feature flags
     FEATURES: {

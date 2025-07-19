@@ -1,12 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700&display=swap');
-@tailwind base;
-
-@tailwind components;
-
-@tailwind utilities;
-
-/* Custom CSS for our AdminPanel */
+@import "tailwindcss";
 
 /* Reset and Base Styles */
 * {
@@ -430,9 +423,6 @@ body {
     flex-shrink: 0;
 }
 
-.step-text {
-    color: #555;
-}
 
 .quick-search {
     margin-top: 30px;

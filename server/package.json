@@ -38,7 +38,7 @@
     "express",
     "render"
   ],
-  "author": "Your Name",
+  "author": "Yousef Bakry",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",

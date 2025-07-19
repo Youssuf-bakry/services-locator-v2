@@ -10,7 +10,7 @@ import { WelcomeMessage } from './components/WelcomeMessage';
 import { LoadingState } from './components/LoadingState';
 import { ErrorState } from './components/ErrorState';
 import { NoResultsState } from './components/NoResultsState';
-import { AdminPanel } from './components/AdminPanel'; // New import
+import { AdminPanel } from './components/admin/AdminPanel'; // New import
 import { DataService } from './services/dataService';
 import { LocationService } from './services/locationService';
 import { calculateDistance } from './utils/helpers';
@@ -26,21 +26,10 @@ export const App = () => {
     // If admin route, render admin panel
     if (isAdminRoute) {
         return (
-            <div>
-                {/* Admin Header */}
-                <div className="bg-red-600 text-white p-4">
-                    <div className="max-w-6xl mx-auto flex justify-between items-center">
-                        <h1 className="text-xl font-bold">🔧 Admin Mode</h1>
-                        <button 
-                            onClick={() => window.location.href = '/'}
-                            className="bg-red-700 hover:bg-red-800 px-4 py-2 rounded transition-colors"
-                        >
-                            ← Back to Main App
-                        </button>
-                    </div>
-                </div>
+          <>
                 <AdminPanel />
-            </div>
+          </>
+          
         );
     }
 
