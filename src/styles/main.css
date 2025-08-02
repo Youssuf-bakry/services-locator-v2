@@ -2,13 +2,14 @@
 @import "tailwindcss";
 
 /* Reset and Base Styles */
-* {
+/* * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-}
+} */
 
 body {
+    direction: rtl;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
@@ -86,9 +87,8 @@ body {
 .main-content {
     display: flex;
     flex-direction: column;
-    /* grid-template-columns: 1fr 1fr; */
-    gap: 20px;
-    margin-bottom: 30px;
+    gap: .5rem;
+    margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {
@@ -98,117 +98,23 @@ body {
     }
 }
 
-/* Search Bar */
-.search-bar {
-    background: white;
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    grid-column: 1 / -1;
-}
-
-.search-input-container {
-    display: flex;
-    gap: 10px;
-    position: relative;
-}
-
-.search-input {
-    flex: 1;
-    padding: 15px 20px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.clear-button {
-    position: absolute;
-    right: 70px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    font-size: 16px;
-    color: #999;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-}
-
-.clear-button:hover {
-    background: #f0f0f0;
-    color: #333;
-}
-
-.search-button {
-    padding: 15px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.search-button:hover {
-    transform: translateY(-2px);
-}
-
 /* Service Filters */
-.service-filters {
-    background: white;
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    grid-column: 1 / -1;
-}
 
-.service-filters h3 {
-    margin-bottom: 15px;
-    color: #333;
-}
 
 .filter-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    justify-content: center;
+ 
+}
+.filter-label{
+    display: none;
 }
 
-.filter-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 25px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-}
 
-.filter-btn:hover {
-    border-color: #667eea;
-    transform: translateY(-2px);
-}
 
-.filter-btn.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-color: #667eea;
-}
 
-.filter-icon {
-    font-size: 16px;
-}
 
 /* Location Permission */
 .location-permission {
@@ -741,7 +647,7 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
     #app {
-        padding: 15px;
+        padding:0%;
     }
     
     .header h1 {
@@ -757,9 +663,11 @@ body {
     }
     
     .filter-btn {
-        flex: 1;
-        min-width: 120px;
+        /* flex: 1 1 100%; 
+        max-width: 100%; */
+        flex-direction: row; 
         justify-content: center;
+        /* padding: 10px 15px; */
     }
     
     .service-actions {
@@ -810,8 +718,18 @@ body {
         flex-direction: column;
     }
     
-    .filter-btn {
-        width: 100%;
+     .filter-btn {
+        flex: 1 1 100%; /* Full width on small mobiles */
+        max-width: 100%;
+        flex-direction: row; /* Back to row on very small screens for compact view */
+        justify-content: center;
+        padding: 10px 15px;
+    }
+    .filter-image {
+        width: 32px; /* Smaller image on tiny screens */
+        height: 32px;
+        margin-bottom: 0; /* No bottom margin when row layout */
+        margin-right: 8px; /* Space to the right of image */
     }
     
     .service-header {

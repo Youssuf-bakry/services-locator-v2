@@ -80,12 +80,12 @@ export const isFeatureEnabled = (featureName) => {
 };
 
 // Log configuration
-console.log('🔧 Dawwarli Configuration:');
-console.log('   🌍 Environment:', CONFIG.IS_PRODUCTION ? 'Production' : 'Development');
-console.log('   📍 Target Location:', CONFIG.LOCATION);
-console.log('   🗄️ Backend API:', CONFIG.BACKEND_API_URL);
-console.log('   🚫 Google API:', CONFIG.USE_GOOGLE_API ? 'Enabled' : 'Disabled (Using MongoDB)');
-console.log('   📱 Mobile Optimized:', CONFIG.FEATURES.MOBILE_OPTIMIZED);
+// console.log('🔧 Dawwarli Configuration:');
+// console.log('   🌍 Environment:', CONFIG.IS_PRODUCTION ? 'Production' : 'Development');
+// console.log('   📍 Target Location:', CONFIG.LOCATION);
+// console.log('   🗄️ Backend API:', CONFIG.BACKEND_API_URL);
+// console.log('   🚫 Google API:', CONFIG.USE_GOOGLE_API ? 'Enabled' : 'Disabled (Using MongoDB)');
+// console.log('   📱 Mobile Optimized:', CONFIG.FEATURES.MOBILE_OPTIMIZED);
 
 // Test backend connection on load (production only)
 if (CONFIG.IS_PRODUCTION) {

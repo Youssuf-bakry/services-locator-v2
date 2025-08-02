@@ -10,11 +10,12 @@ import { WelcomeMessage } from './components/WelcomeMessage';
 import { LoadingState } from './components/LoadingState';
 import { ErrorState } from './components/ErrorState';
 import { NoResultsState } from './components/NoResultsState';
-import { AdminPanel } from './components/admin/AdminPanel'; // New import
+import AdminPanel from './components/admin/AdminPanel'; 
 import { DataService } from './services/dataService';
 import { LocationService } from './services/locationService';
 import { calculateDistance } from './utils/helpers';
 import { MobileDebug } from './components/MobileDebug';
+import Header from './components/header/Header';
 
 const dataService = new DataService();
 const locationService = new LocationService();
@@ -254,26 +255,23 @@ export const App = () => {
     // Regular app render (your existing JSX)
     return (
         <div id="app">
-            <header className="header">
-                <h1>🏙️ City Services</h1>
-                <p>Find nearby services in your area</p>
-            </header>
+           <Header/>
             
             <main className="main-content">
-                <div id="search-container">
+              
+                <div className='grid  rounded-[15px] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.1)] "'>
                     <SearchBar 
                         onSearch={handleSearch}
                         searchQuery={searchQuery}
                         onQueryChange={setSearchQuery}
                     />
-                </div>
-                
-                <div id="filters-container">
                     <ServiceFilters 
                         activeFilter={currentFilter}
                         onFilterChange={handleFilterChange}
                     />
                 </div>
+                
+                
                 
                 {showLocationPermission && (
                     <div id="location-permission">
@@ -281,45 +279,19 @@ export const App = () => {
                     </div>
                 )}
                 
-                <div id="map-container" hidden>
+                {/* <div id="map-container" hidden>
                     <MapView 
                         userLocation={userLocation}
                         services={filteredServices}
                     />
-                </div>
+                </div> */}
                 
                 <div id="results-container">
                     {renderMainContent()}
                 </div>
             </main>
             
-            {/* <button 
-                onClick={() => setShowMobileDebug(true)}
-                style={{
-                    position: 'fixed',
-                    bottom: '20px',
-                    right: '20px',
-                    background: '#ff6b6b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '60px',
-                    height: '60px',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    zIndex: 1000,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                }}
-                title="Mobile Debug"
-            >
-                🔧
-            </button> */}
-            
-            {/* Mobile Debug Component
-            {showMobileDebug && (
-                <MobileDebug onClose={() => setShowMobileDebug(false)} />
-            )} */}
-
+      
             <InstallPrompt />
 
         </div>
