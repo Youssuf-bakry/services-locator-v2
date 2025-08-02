@@ -3,6 +3,288 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { body, query } = require('express-validator');
 
+// Import both models
+const Business = require('../models/Business');  // Food businesses
+const FoodReview = require('../models/FoodReview');  // Reviews
+
+// ========================================
+// FOOD BUSINESS ROUTES (New)
+// ========================================
+
+// Validation for creating food businesses
+const createBusinessValidation = [
+  body('businessName')
+    .notEmpty()
+    .withMessage('Business name is required')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Business name must be between 2-100 characters'),
+    
+  body('businessType')
+    .notEmpty()
+    .withMessage('Business type is required')
+    .isIn(['مطعم', 'مقهى', 'مخبزة', 'حلويات', 'وجبات سريعة', 'عصائر', 'كافيتيريا', 'بوفيه مفتوح', 'مطبخ منزلي'])
+    .withMessage('Invalid business type'),
+    
+  body('location.coordinates')
+    .isArray({ min: 2, max: 2 })
+    .withMessage('Coordinates must be an array of [longitude, latitude]'),
+    
+  body('location.coordinates.*')
+    .isFloat()
+    .withMessage('Coordinates must be valid numbers'),
+    
+  body('location.city')
+    .notEmpty()
+    .withMessage('City is required'),
+    
+  body('location.neighborhood')
+    .notEmpty()
+    .withMessage('Neighborhood is required'),
+
+  body('contact.phoneNumber')
+    .notEmpty()
+    .withMessage('Phone number is required'),
+
+  // Optional validations
+  body('contact.whatsappNumber')
+    .optional()
+    .isMobilePhone('any')
+    .withMessage('Invalid WhatsApp number'),
+    
+  body('serviceInfo.paymentMethods')
+    .optional()
+    .isArray()
+    .withMessage('Payment methods must be an array')
+];
+
+// POST /api/admin/businesses - Create new food business
+router.post('/businesses', createBusinessValidation, async (req, res) => {
+  try {
+    console.log('📥 Creating food business:', req.body.businessName);
+    console.log('📦 Business data:', req.body);
+    
+    const businessData = {
+      ...req.body,
+      owner: req.body.owner || '507f1f77bcf86cd799439011' // Default owner for testing
+    };
+    
+    const business = new Business(businessData);
+    const savedBusiness = await business.save();
+    
+    console.log('✅ Food business created:', savedBusiness._id);
+    
+    res.status(201).json({
+      success: true,
+      data: savedBusiness,
+      message: 'Food business created successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating food business:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create food business',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/admin/businesses - List food businesses
+router.get('/businesses', [
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+  query('businessType').optional().isIn(['all', 'مطعم', 'مقهى', 'مخبزة', 'حلويات', 'وجبات سريعة', 'عصائر', 'كافيتيريا', 'بوفيه مفتوح', 'مطبخ منزلي']),
+  query('city').optional(),
+  query('isVerified').optional().isBoolean(),
+  query('sortBy').optional().isIn(['businessName', 'businessType', 'createdAt', 'ratings.averageRating']),
+  query('sortOrder').optional().isIn(['asc', 'desc'])
+], async (req, res) => {
+  try {
+    const { page = 1, limit = 20, businessType, city, isVerified, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    
+    // Build filter
+    const filter = {};
+    if (businessType && businessType !== 'all') filter.businessType = businessType;
+    if (city) filter['location.city'] = { $regex: city, $options: 'i' };
+    if (isVerified !== undefined) filter['status.isVerified'] = isVerified === 'true';
+    
+    // Build sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+    const businesses = await Business.find(filter)
+      .select('businessName businessType location ratings status createdAt')
+      .sort(sort)
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .lean();
+    
+    const total = await Business.countDocuments(filter);
+    
+    res.json({
+      success: true,
+      data: businesses,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching businesses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch businesses',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/admin/businesses/:id - Get single business
+router.get('/businesses/:id', async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: 'Business not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: business
+    });
+    
+  } catch (error) {
+    console.error('Error fetching business:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch business',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/admin/businesses/:id - Update business
+router.put('/businesses/:id', async (req, res) => {
+  try {
+    const business = await Business.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    );
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: 'Business not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: business,
+      message: 'Business updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error updating business:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update business',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/admin/businesses/:id - Delete business
+router.delete('/businesses/:id', async (req, res) => {
+  try {
+    const business = await Business.findByIdAndDelete(req.params.id);
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: 'Business not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Business deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting business:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete business',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/admin/business-categories - Get food business categories
+router.get('/business-categories', async (req, res) => {
+  try {
+    const businessTypes = [
+      { value: 'مطعم', label: 'مطعم - Restaurant', icon: '🍽️' },
+      { value: 'مقهى', label: 'مقهى - Cafe', icon: '☕' },
+      { value: 'مخبزة', label: 'مخبزة - Bakery', icon: '🥖' },
+      { value: 'حلويات', label: 'حلويات - Sweets', icon: '🍰' },
+      { value: 'وجبات سريعة', label: 'وجبات سريعة - Fast Food', icon: '🍔' },
+      { value: 'عصائر', label: 'عصائر - Juice Bar', icon: '🥤' },
+      { value: 'كافيتيريا', label: 'كافيتيريا - Cafeteria', icon: '🍴' },
+      { value: 'بوفيه مفتوح', label: 'بوفيه مفتوح - Buffet', icon: '🍽️' },
+      { value: 'مطبخ منزلي', label: 'مطبخ منزلي - Home Kitchen', icon: '🏠' }
+    ];
+
+    const foodCategories = {
+      mainCategories: ['إفطار', 'وجبة رئيسية', 'مشروب', 'حلويات', 'سناك'],
+      subCategories: ['مخبوزات', 'لحوم', 'دواجن', 'أرز/عدس', 'ساندوتش', 'ساخن', 'بارد', 'متنوع'],
+      cuisineStyles: ['عربي', 'شعبي', 'غربي', 'إيطالي', 'آسيوي', 'مصري', 'لبناني', 'تركي', 'هندي', 'مكسيكي'],
+      dietaryOptions: ['عادي', 'صحي', 'نباتي', 'خالي من الجلوتين', 'قليل الدسم', 'كيتو'],
+      mealTimes: ['صباح', 'غداء', 'عشاء', 'سناك', 'صباح/سناك', 'غداء/عشاء', 'أي وقت'],
+      foodTags: ['حلويات', 'دايت', 'خفيف', 'منبه', 'مشبع', 'سريع', 'مقلي', 'مشويات', 'لفائف', 'طازج', 'منزلي', 'فاخر']
+    };
+
+    res.json({
+      success: true,
+      data: {
+        businessTypes,
+        foodCategories
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching business categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching categories'
+    });
+  }
+});
+
+// ========================================
+// ORIGINAL SERVICE ROUTES (Keep existing)
+// ========================================
+
 // Validation middleware for creating services
 const createServiceValidation = [
   body('name')
@@ -58,7 +340,53 @@ const createServiceValidation = [
 ];
 
 // GET /api/admin/stats - Enhanced statistics
-router.get('/stats', adminController.getStats);
+router.get('/stats', async (req, res) => {
+  try {
+    const [
+      totalBusinesses,
+      totalReviews,
+      businessesByType,
+      topRatedBusinesses,
+      reviewsByRating
+    ] = await Promise.all([
+      Business.countDocuments({ 'status.isVerified': true }),
+      FoodReview.countDocuments({ status: 'approved' }),
+      Business.aggregate([
+        { $match: { 'status.isVerified': true } },
+        { $group: { _id: '$businessType', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      Business.find({ 'status.isVerified': true })
+        .select('businessName businessType ratings')
+        .sort({ 'ratings.averageRating': -1 })
+        .limit(10)
+        .lean(),
+      FoodReview.aggregate([
+        { $match: { status: 'approved' } },
+        { $group: { _id: '$overallRating', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalBusinesses,
+        totalReviews,
+        businessesByType,
+        topRatedBusinesses,
+        reviewsByRating
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في جلب الإحصائيات',
+      error: error.message
+    });
+  }
+});
 
 // GET /api/admin/services - List services with filtering and pagination
 router.get('/services', [
