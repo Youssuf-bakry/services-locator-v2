@@ -8,7 +8,7 @@ const businessRoutes = require('./routes/routes');
 require('dotenv').config();
 
 const app = express();
-
+app.use(morgan('dev'));
 // Connect to database only if MongoDB URI is provided
 if (process.env.MONGODB_URI) {
   const connectDB = require('./config/database');
@@ -111,7 +111,7 @@ app.get('/', (req, res) => {
       admin: '/api/admin'
     },
     features: [
-      'Saudi Arabia Location Support',
+      'October City Location Support',
       'Arabic Search',
       'Mobile Optimized',
       'Real-time Location Detection'

@@ -22,7 +22,7 @@ exports.createService = async (req, res) => {
       category,
       subcategory,
       description,
-      latitude, // Frontend sends separate lat/lng
+      latitude, 
       longitude,
       address,
       contact,
@@ -79,7 +79,7 @@ exports.createService = async (req, res) => {
         city: address.city?.trim(),
         governorate: address.governorate?.trim(),
         postalCode: address.postalCode?.trim(),
-        country: address.country?.trim() || 'Saudi Arabia'
+        country: address.country?.trim() || 'October City'
       },
       
       contact: contact || {},

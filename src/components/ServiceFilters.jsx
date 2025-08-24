@@ -1,7 +1,6 @@
 // In your ServiceFilters.jsx file
 const filters = [
-    { id: 'all', label: 'All Services', image: '/images/service-icons/all.svg' }, // Updated to image path
-    {id:"صنايعي",label:"صنايعي",image:"./service-icons/images/sabbak.png"},
+    { id: 'all', label: 'All Services', image: '/images/service-icons/all.svg' }, 
     { id: 'pharmacy', label: 'Pharmacies', image: '/images/service-icons/pharmacy.svg' },
     { id: 'grocery', label: 'Grocery Stores', image: '/images/service-icons/grocery.svg' },
     { id: 'restaurant', label: 'Restaurants', image: '/images/service-icons/restaurant.svg' },

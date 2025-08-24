@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-// API service for food businesses
-const foodBusinessApiService = {
+import {CONFIG} from '../../config/config'; 
+const BACKEND_API_URL = CONFIG.BACKEND_API_URL;
+// API service for all business types
+const businessApiService = {
     async createBusiness(businessData) {
-        const apiUrl = 'http://localhost:5000/api/admin'; // Update to your API URL
+        const apiUrl = BACKEND_API_URL; // Update to your API URL
         
         console.log('🔍 Sending business data to:', apiUrl);
         console.log('📦 Business data:', businessData);
@@ -15,15 +16,14 @@ const foodBusinessApiService = {
             },
             body: JSON.stringify(businessData)
         });
-        console.log('Response status:', response.status);
-console.log('Response ok:', response.ok);
+        
         const result = await response.json();
         console.log('📡 Backend response:', result);
         
         if (!response.ok) {
-             const errorText = await response.text();
+            const errorText = await response.text();
             console.error('❌ Backend error details:', errorText);
-             throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
         return result.data;
@@ -71,29 +71,47 @@ const AdminPanel = () => {
     const [message, setMessage] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
 
-    // Form state matching your Business schema
+    // Form state for all business types
     const [formData, setFormData] = useState({
         businessName: '',
         businessDescription: '',
-        businessType: 'مطعم',
-        mainBusinessType: 'مطعم',
+        mainBusinessType: 'الطعام والمشروبات',
+        subBusinessType: '',
+        entityType: 'shop',
         
-        foodCategories: {
-            mainCategories: [],
-            subCategories: [],
-            dietaryOptions: [],
-            mealTimes: [],
-            cuisineStyle: [],
-            foodTags: []
+        serviceCategories: {
+            foodCategories: {
+                mainCategories: [],
+                subCategories: [],
+                dietaryOptions: [],
+                mealTimes: [],
+                cuisineStyle: [],
+                foodTags: []
+            },
+            medicalCategories: {
+                specializations: [],
+                serviceTypes: [],
+                insuranceAccepted: [],
+                emergencyServices: false
+            },
+            professionalCategories: {
+                serviceType: [],
+                skills: [],
+                tools: [],
+                certification: []
+            },
+            generalTags: []
         },
         
         location: {
-            province: 'الرياض',
+            province: 'أكتوبر',
             city: '',
             neighborhood: '',
             street: '',
             mallName: '',
             shopNumber: '',
+            buildingNumber: '',
+            floor: '',
             coordinates: []
         },
         
@@ -101,7 +119,9 @@ const AdminPanel = () => {
             phoneNumber: '',
             whatsappNumber: '',
             deliveryNumber: '',
+            emergencyNumber: '',
             website: '',
+            email: '',
             socialMediaLinks: []
         },
         
@@ -114,18 +134,26 @@ const AdminPanel = () => {
                 { day: 'Thursday', openTime: '08:00', closeTime: '22:00', isOpen: true },
                 { day: 'Friday', openTime: '14:00', closeTime: '22:00', isOpen: true },
                 { day: 'Saturday', openTime: '08:00', closeTime: '22:00', isOpen: true }
-            ]
+            ],
+            appointmentOnly: false,
+            emergencyHours: {
+                available24_7: false,
+                emergencyStart: '',
+                emergencyEnd: ''
+            }
         },
         
         serviceInfo: {
-            diningOptions: {
-                dineIn: true,
-                takeaway: true,
-                delivery: false
-            },
+            serviceType: '',
+            serviceTags: [],
+            diningType: 'both',
             diningRoomType: 'مختلط',
+            consultationType: 'in_person',
+            serviceLocation: 'on_site',
             paymentMethods: [],
-            features: []
+            features: [],
+            accessibility: [],
+            languages: ['العربية']
         },
         
         delivery: {
@@ -133,10 +161,37 @@ const AdminPanel = () => {
             deliveryFees: 0,
             minimumOrder: 0,
             deliveryAreas: [],
-            deliveryDuration: { min: 30, max: 60 }
+            deliveryDuration: { min: 30, max: 60 },
+            vehicleTypes: []
         },
         
-        menuItems: [],
+        professionalService: {
+            experienceYears: 0,
+            certifications: [],
+            teamSize: 1,
+            equipmentOwned: [],
+            serviceRadius: 10,
+            emergencyService: false,
+            warranty: {
+                offered: false,
+                duration: '',
+                terms: ''
+            }
+        },
+        
+        medicalService: {
+            licenseNumber: '',
+            specializations: [],
+            doctorNames: [],
+            insuranceNetworks: [],
+            medicalEquipment: [],
+            emergencyServices: false,
+            appointmentBooking: {
+                online: false,
+                phone: true,
+                walkIn: true
+            }
+        },
         
         status: {
             isVerified: true,
@@ -145,55 +200,127 @@ const AdminPanel = () => {
         }
     });
 
-    // Available options based on your schema
-    const businessTypeOptions = [
-        { value: 'مطعم', label: 'مطعم - Restaurant', icon: '🍽️' },
-        { value: 'مقهى', label: 'مقهى - Cafe', icon: '☕' },
-        { value: 'مخبزة', label: 'مخبزة - Bakery', icon: '🥖' },
-        { value: 'حلويات', label: 'حلويات - Sweets', icon: '🍰' },
-        { value: 'وجبات سريعة', label: 'وجبات سريعة - Fast Food', icon: '🍔' },
-        { value: 'عصائر', label: 'عصائر - Juice Bar', icon: '🥤' },
-        { value: 'كافيتيريا', label: 'كافيتيريا - Cafeteria', icon: '🍴' },
-        { value: 'بوفيه مفتوح', label: 'بوفيه مفتوح - Buffet', icon: '🍽️' },
-        { value: 'مطبخ منزلي', label: 'مطبخ منزلي - Home Kitchen', icon: '🏠' }
+    // Complete category options from your Excel file
+    const mainBusinessTypes = [
+        { 
+            value: 'الطعام والمشروبات', 
+            label: 'الطعام والمشروبات - Food & Beverages', 
+            icon: '🍽️' 
+        },
+        { 
+            value: 'الخدمات الطبية', 
+            label: 'الخدمات الطبية - Medical Services', 
+            icon: '🏥' 
+        },
+        { 
+            value: 'الخدمات المنزلية', 
+            label: 'الخدمات المنزلية - Home Services', 
+            icon: '🏠' 
+        },
+        { 
+            value: 'الخدمات المِهنية', 
+            label: 'الخدمات المِهنية - Professional Services', 
+            icon: '🔧' 
+        },
+        { 
+            value: 'المرافق العامة', 
+            label: 'المرافق العامة - Public Facilities', 
+            icon: '🏛️' 
+        }
     ];
 
-    const mainCategoryOptions = [
-        'إفطار', 'وجبة رئيسية', 'مشروب', 'حلويات', 'سناك'
+    // Subcategories from your Excel file
+    const subBusinessTypes = {
+        'الطعام والمشروبات': [
+            'فول وطعمية', 'قهوة بلدي', 'سوبر ماركت', 'لحوم طازجة', 'خضروات', 'فرن عيش بلدي',
+            'كشري', 'كافيه', 'عطارة', 'لحوم مجمدة', 'فواكه', 'مخبز عيش فينو',
+            'مشويات', 'عصائر طبيعية', 'بقالة', 'دواجن', 'خضروات عضوية', 'حلويات شرقية',
+            'شاورما', 'عصير قصب', 'أسماك', 'فواكه عضوية', 'حلويات غربية',
+          , 'عربية قهوة', 'بيتزا', 'كريب'
+        ],
+        'الخدمات الطبية': [
+            'مستشفيات عامة', 'أسنان', 'صيدلية', 'مراكز أشعة',
+            'مستشفيات خاصة', 'أمراض الكلى', 'تأمين طبي', 'معامل تحاليل',
+            'مستشفيات تخصصي', 'أنف وأذن وحنجرة', 'قياس ضغط وسكر', 'البصريات',
+            'مستشفيات ولادة', 'اطفال وحديثي الولادة', 'قياس وزن',
+            'التأمين الصحي', 'الأورام', 'الوحدة الصحية', 'الروماتيزم والتأهيل',
+            'الغدد الصماء والسكر', 'المستلزمات الطبية', 'امراض الدم'
+        ],
+        'الخدمات المنزلية': [
+            'منظفات منزلية', 'كي بالبخار', 'حلاق', 'مكتبة تصوير مستندات', 'نسخ مفاتيح وشفرات',
+            'ملابس رجالي', 'ورد طبيعي', 'بلاستيك وورقيات', 'دراي كلين', 'كوافير', 'أدوات مدرسية',
+            'صيانة هواتف', 'ملابس أطفال', 'هدايا وتغليف', 'غسيل سجاد', 'حمام مغربي', 'دار بيع كتب',
+            'صيانة الحاسوب', 'ملابس حريمي', 'ورد صناعي', 'غسيل بطاطين', 'حجامة طبية', 'أدوات مكتبية',
+            'إكسسورات الهواتف', 'ملابس مقاسات كبيرة', 'مستلزمات زفاف وخطوبة', 'خياط رجالي', 'مركز تجميل',
+            'إكسسورات الحاسوب', 'ملابس رياضية', 'خياط نسائي', 'عيادة ليزر', 'ملابس محجبات', 'عطور',
+            'لانجيري', 'فساتين', 'ملابس داخلية'
+        ],
+        'الخدمات المِهنية': [
+            'نقاش', 'كهربائي', 'سباك', 'نجار', 'نجار باب وشباك', 'حداد', 'ألوميتال وUPVC',
+            'زجاج ومرايا', 'مبّلط سيراميك', 'مبيض محارة', 'فني دش', 'فني تكييف وتبريد',
+            'فني جبس بورد', 'فني أجهزة كهربائية', 'فني مصاعد', 'فني إصلاح هواتف', 'فني إصلاح حاسوب',
+            'فني فتحة كور للغاز', 'جنايني', 'شركات تشطيبات', 'فني كاميرات مراقبة', 'فني تركيب شفرة بوابة',
+            'فني خط أرضي وإنترنت', 'غسيل سيارات', 'عامل نقل عفش', 'فني فلاتر مياه', 'فني مكافحة حشرات',
+            'عامل تنظيف منازل', 'منجد', 'عامل تكسير حوائط', 'عامل بناء', 'مكيانيكي سيارات',
+            'فني كاوتش وبطاريات', 'فني كهرباء سيارات', 'فني دوكو وسمكرة', 'فني تكييف سيارات',
+            'فني برمجة مفاتيح سيارات', 'نقل عفش', 'غسيل السلم', 'فني مطابخ', 'رخام', 'انتركم',
+            'مكاتب عقارات', 'أنابيب غاز', 'فلاتر مياه', 'سيارة ربع نقل', 'موان', 'سيارة نقل جامبو',
+            'لوازم سباكة', 'لوازم كهرباء', 'حافلة كوستر', 'رملة مونة', 'سيارة هايس 14 راكب',
+            'توصيل مشاوير', 'توصيل طلبات'
+        ],
+        'المرافق العامة': [
+            'صراف آلي', 'البنوك والبريد', 'مدارس', 'مولات', 'مساجد', 'تعليم وتدريب',
+            'نوادي وصالات رياضية', 'محطات الوقود', 'مساحات عمل مشتركة', 'شركة الغاز',
+            'شركة الكهرباء', 'شركة المياه', 'السنترال والإنترنت', 'السجل المدني', 'قسم الشرطة',
+            'سيارة الإسعاف', 'نقطة إطفاء الحرائق', 'حضانات'
+        ]
+    };
+
+    // Food specific categories
+    const foodMainCategories = ['إفطار', 'وجبة رئيسية', 'مشروب', 'حلويات', 'سناك'];
+    const foodSubCategories = ['مخبوزات', 'لحوم', 'دواجن', 'أرز/عدس', 'ساندوتش', 'ساخن', 'بارد', 'متنوع'];
+    const dietaryOptions = ['عادي', 'صحي', 'نباتي', 'خالي من الجلوتين', 'قليل الدسم', 'كيتو'];
+    const mealTimeOptions = ['صباح', 'غداء', 'عشاء', 'سناك', 'صباح/سناك', 'غداء/عشاء', 'أي وقت'];
+    const cuisineStyleOptions = ['عربي', 'شعبي', 'غربي', 'إيطالي', 'آسيوي', 'مصري', 'لبناني', 'تركي', 'هندي', 'مكسيكي'];
+    const foodTagOptions = ['حلويات', 'دايت', 'خفيف', 'منبه', 'مشبع', 'سريع', 'مقلي', 'مشويات', 'لفائف', 'طازج', 'منزلي', 'فاخر'];
+
+    // Medical specific categories
+    const medicalSpecializations = [
+        'طب عام', 'أسنان', 'أطفال', 'نساء وولادة', 'عظام', 'قلب', 'أعصاب', 'عيون', 'أنف وأذن وحنجرة',
+        'جلدية', 'نفسية', 'كلى', 'جهاز هضمي', 'صدر', 'روماتيزم', 'غدد صماء', 'أورام', 'تجميل', 'طب طوارئ'
+    ];
+    const medicalServiceTypes = ['استشارة', 'فحص', 'عملية', 'تحاليل', 'أشعة', 'علاج طبيعي', 'طوارئ'];
+    const insuranceNetworks = ['بوبا', 'التعاونية', 'سلامة', 'الراجحي', 'أليانز', 'نايس', 'ميدجلف'];
+
+    // Professional service categories
+    const professionalServiceTypes = ['صيانة', 'إصلاح', 'تركيب', 'تنظيف', 'نقل', 'استشارة', 'تصميم', 'إنشاء'];
+    const professionalSkills = [
+        'كهرباء', 'سباكة', 'نجارة', 'حدادة', 'دهان', 'بلاط', 'جبس', 'تكييف', 'آلات', 'سيارات', 'حاسوب', 'شبكات'
     ];
 
-    const subCategoryOptions = [
-        'مخبوزات', 'لحوم', 'دواجن', 'أرز/عدس', 'ساندوتش', 'ساخن', 'بارد', 'متنوع'
-    ];
-
-    const dietaryOptions = [
-        'عادي', 'صحي', 'نباتي', 'خالي من الجلوتين', 'قليل الدسم', 'كيتو'
-    ];
-
-    const mealTimeOptions = [
-        'صباح', 'غداء', 'عشاء', 'سناك', 'صباح/سناك', 'غداء/عشاء', 'أي وقت'
-    ];
-
-    const cuisineStyleOptions = [
-        'عربي', 'شعبي', 'غربي', 'إيطالي', 'آسيوي', 'مصري', 'لبناني', 'تركي', 'هندي', 'مكسيكي'
-    ];
-
-    const foodTagOptions = [
-        'حلويات', 'دايت', 'خفيف', 'منبه', 'مشبع', 'سريع', 'مقلي', 'مشويات', 'لفائف', 'طازج', 'منزلي', 'فاخر'
-    ];
-
-    const diningRoomOptions = [
-        'عائلي', 'رجال فقط', 'مختلط', 'لا يوجد صالة'
+    // Universal options
+    const entityTypeOptions = [
+        { value: 'shop', label: 'محل - Shop' },
+        { value: 'individual', label: 'فرد - Individual' },
+        { value: 'company', label: 'شركة - Company' },
+        { value: 'clinic', label: 'عيادة - Clinic' },
+        { value: 'facility', label: 'مرفق - Facility' }
     ];
 
     const paymentMethodOptions = [
-        'cash', 'visa', 'mada', 'stc_pay', 'apple_pay', 'mastercard'
+        'cash', 'visa', 'mada', 'mastercard', 'stc_pay', 'apple_pay', 'google_pay', 'bank_transfer', 'insurance', 'installments'
     ];
 
     const featureOptions = [
-        'واي فاي مجاني', 'موقف سيارات', 'متاح للعائلات', 'قسم نسائي', 
-        'العاب أطفال', 'طلبات أونلاين', 'حجز طاولات', 'مناسب للمعاقين'
+        'واي فاي مجاني', 'موقف سيارات', 'متاح للعائلات', 'قسم نسائي', 'العاب أطفال', 'طلبات أونلاين',
+        'حجز طاولات', 'مناسب للمعاقين', 'خدمة 24 ساعة', 'توصيل مجاني', 'ضمان على الخدمة', 'فريق متخصص'
     ];
+
+    const accessibilityOptions = [
+        'مدخل للكراسي المتحركة', 'مصعد', 'حمام مخصص للمعاقين', 'مواقف مخصصة', 'لغة الإشارة'
+    ];
+
+    const languageOptions = ['العربية', 'English', 'Français', 'Español', 'Urdu', 'Hindi', 'Filipino'];
 
     // Initialize map
     useEffect(() => {
@@ -338,6 +465,21 @@ const AdminPanel = () => {
                     }
                 }
             }));
+        } else if (fieldParts.length === 4) {
+            const [parent, child, grandchild, greatGrandchild] = fieldParts;
+            setFormData(prev => ({
+                ...prev,
+                [parent]: {
+                    ...prev[parent],
+                    [child]: {
+                        ...prev[parent][child],
+                        [grandchild]: {
+                            ...prev[parent][child][grandchild],
+                            [greatGrandchild]: value
+                        }
+                    }
+                }
+            }));
         }
     };
 
@@ -367,6 +509,34 @@ const AdminPanel = () => {
                     };
                 }
             });
+        } else if (fieldParts.length === 3) {
+            const [parent, child, grandchild] = fieldParts;
+            setFormData(prev => {
+                const currentArray = prev[parent][child][grandchild];
+                if (currentArray.includes(value)) {
+                    return {
+                        ...prev,
+                        [parent]: {
+                            ...prev[parent],
+                            [child]: {
+                                ...prev[parent][child],
+                                [grandchild]: currentArray.filter(item => item !== value)
+                            }
+                        }
+                    };
+                } else {
+                    return {
+                        ...prev,
+                        [parent]: {
+                            ...prev[parent],
+                            [child]: {
+                                ...prev[parent][child],
+                                [grandchild]: [...currentArray, value]
+                            }
+                        }
+                    };
+                }
+            });
         } else {
             setFormData(prev => {
                 const currentArray = prev[field];
@@ -385,6 +555,44 @@ const AdminPanel = () => {
         }
     };
 
+    // Handle main business type change
+    const handleMainBusinessTypeChange = (value) => {
+        setFormData(prev => ({
+            ...prev,
+            mainBusinessType: value,
+            subBusinessType: '', // Reset sub type when main type changes
+            // Reset type-specific categories
+            serviceCategories: {
+                ...prev.serviceCategories,
+                foodCategories: {
+                    mainCategories: [],
+                    subCategories: [],
+                    dietaryOptions: [],
+                    mealTimes: [],
+                    cuisineStyle: [],
+                    foodTags: []
+                },
+                medicalCategories: {
+                    specializations: [],
+                    serviceTypes: [],
+                    insuranceAccepted: [],
+                    emergencyServices: false
+                },
+                professionalCategories: {
+                    serviceType: [],
+                    skills: [],
+                    tools: [],
+                    certification: []
+                }
+            }
+        }));
+    };
+
+    // Get current subcategories based on selected main type
+    const getCurrentSubCategories = () => {
+        return subBusinessTypes[formData.mainBusinessType] || [];
+    };
+
     // Submit business data
     const handleSubmit = async () => {
         if (!selectedLocation) {
@@ -394,6 +602,11 @@ const AdminPanel = () => {
 
         if (!formData.businessName.trim()) {
             setMessage('❌ Business name is required');
+            return;
+        }
+
+        if (!formData.subBusinessType) {
+            setMessage('❌ Please select a sub-category for your business');
             return;
         }
 
@@ -414,7 +627,7 @@ const AdminPanel = () => {
                 owner: '507f1f77bcf86cd799439011' // You'll need to add authentication to get real owner ID
             };
 
-            const result = await foodBusinessApiService.createBusiness(businessData);
+            const result = await businessApiService.createBusiness(businessData);
             
             setMessage(`✅ Business "${formData.businessName}" created successfully!`);
             
@@ -422,15 +635,31 @@ const AdminPanel = () => {
             setFormData({
                 businessName: '',
                 businessDescription: '',
-                businessType: 'مطعم',
-                mainBusinessType: 'مطعم',
-                foodCategories: {
-                    mainCategories: [],
-                    subCategories: [],
-                    dietaryOptions: [],
-                    mealTimes: [],
-                    cuisineStyle: [],
-                    foodTags: []
+                mainBusinessType: 'الطعام والمشروبات',
+                subBusinessType: '',
+                entityType: 'shop',
+                serviceCategories: {
+                    foodCategories: {
+                        mainCategories: [],
+                        subCategories: [],
+                        dietaryOptions: [],
+                        mealTimes: [],
+                        cuisineStyle: [],
+                        foodTags: []
+                    },
+                    medicalCategories: {
+                        specializations: [],
+                        serviceTypes: [],
+                        insuranceAccepted: [],
+                        emergencyServices: false
+                    },
+                    professionalCategories: {
+                        serviceType: [],
+                        skills: [],
+                        tools: [],
+                        certification: []
+                    },
+                    generalTags: []
                 },
                 location: {
                     province: 'الرياض',
@@ -439,13 +668,17 @@ const AdminPanel = () => {
                     street: '',
                     mallName: '',
                     shopNumber: '',
+                    buildingNumber: '',
+                    floor: '',
                     coordinates: []
                 },
                 contact: {
                     phoneNumber: '',
                     whatsappNumber: '',
                     deliveryNumber: '',
+                    emergencyNumber: '',
                     website: '',
+                    email: '',
                     socialMediaLinks: []
                 },
                 operatingHours: {
@@ -457,26 +690,60 @@ const AdminPanel = () => {
                         { day: 'Thursday', openTime: '08:00', closeTime: '22:00', isOpen: true },
                         { day: 'Friday', openTime: '14:00', closeTime: '22:00', isOpen: true },
                         { day: 'Saturday', openTime: '08:00', closeTime: '22:00', isOpen: true }
-                    ]
+                    ],
+                    appointmentOnly: false,
+                    emergencyHours: {
+                        available24_7: false,
+                        emergencyStart: '',
+                        emergencyEnd: ''
+                    }
                 },
                 serviceInfo: {
-                    diningOptions: {
-                        dineIn: true,
-                        takeaway: true,
-                        delivery: false
-                    },
+                    serviceType: '',
+                    serviceTags: [],
+                    diningType: 'both',
                     diningRoomType: 'مختلط',
+                    consultationType: 'in_person',
+                    serviceLocation: 'on_site',
                     paymentMethods: [],
-                    features: []
+                    features: [],
+                    accessibility: [],
+                    languages: ['العربية']
                 },
                 delivery: {
                     isAvailable: false,
                     deliveryFees: 0,
                     minimumOrder: 0,
                     deliveryAreas: [],
-                    deliveryDuration: { min: 30, max: 60 }
+                    deliveryDuration: { min: 30, max: 60 },
+                    vehicleTypes: []
                 },
-                menuItems: [],
+                professionalService: {
+                    experienceYears: 0,
+                    certifications: [],
+                    teamSize: 1,
+                    equipmentOwned: [],
+                    serviceRadius: 10,
+                    emergencyService: false,
+                    warranty: {
+                        offered: false,
+                        duration: '',
+                        terms: ''
+                    }
+                },
+                medicalService: {
+                    licenseNumber: '',
+                    specializations: [],
+                    doctorNames: [],
+                    insuranceNetworks: [],
+                    medicalEquipment: [],
+                    emergencyServices: false,
+                    appointmentBooking: {
+                        online: false,
+                        phone: true,
+                        walkIn: true
+                    }
+                },
                 status: {
                     isVerified: true,
                     isOpen: true,
@@ -503,11 +770,204 @@ const AdminPanel = () => {
         }
     };
 
+    // Render category-specific fields
+    const renderCategorySpecificFields = () => {
+        switch (formData.mainBusinessType) {
+            case 'الطعام والمشروبات':
+                return (
+                    <div className="space-y-4">
+                        {/* Food Categories */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                الفئات الأساسية - Main Food Categories
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {foodMainCategories.map(category => (
+                                    <label key={category} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.foodCategories.mainCategories.includes(category)}
+                                            onChange={() => handleArrayChange('serviceCategories.foodCategories.mainCategories', category)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{category}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                نمط المأكولات - Cuisine Style
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {cuisineStyleOptions.map(style => (
+                                    <label key={style} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.foodCategories.cuisineStyle.includes(style)}
+                                            onChange={() => handleArrayChange('serviceCategories.foodCategories.cuisineStyle', style)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{style}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                أوقات الوجبات - Meal Times
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {mealTimeOptions.map(time => (
+                                    <label key={time} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.foodCategories.mealTimes.includes(time)}
+                                            onChange={() => handleArrayChange('serviceCategories.foodCategories.mealTimes', time)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{time}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'الخدمات الطبية':
+                return (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                التخصصات الطبية - Medical Specializations
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {medicalSpecializations.map(spec => (
+                                    <label key={spec} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.medicalCategories.specializations.includes(spec)}
+                                            onChange={() => handleArrayChange('serviceCategories.medicalCategories.specializations', spec)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{spec}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                رقم الترخيص الطبي - Medical License Number
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.medicalService.licenseNumber}
+                                onChange={(e) => handleInputChange('medicalService.licenseNumber', e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="رقم الترخيص"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                شبكات التأمين المقبولة - Accepted Insurance Networks
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {insuranceNetworks.map(insurance => (
+                                    <label key={insurance} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.medicalCategories.insuranceAccepted.includes(insurance)}
+                                            onChange={() => handleArrayChange('serviceCategories.medicalCategories.insuranceAccepted', insurance)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{insurance}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'الخدمات المِهنية':
+                return (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                أنواع الخدمات المهنية - Professional Service Types
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {professionalServiceTypes.map(type => (
+                                    <label key={type} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.serviceCategories.professionalCategories.serviceType.includes(type)}
+                                            onChange={() => handleArrayChange('serviceCategories.professionalCategories.serviceType', type)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">{type}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    سنوات الخبرة - Experience Years
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={formData.professionalService.experienceYears}
+                                    onChange={(e) => handleInputChange('professionalService.experienceYears', parseInt(e.target.value) || 0)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="عدد السنوات"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    حجم الفريق - Team Size
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={formData.professionalService.teamSize}
+                                    onChange={(e) => handleInputChange('professionalService.teamSize', parseInt(e.target.value) || 1)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="عدد الأفراد"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.professionalService.emergencyService}
+                                    onChange={(e) => handleInputChange('professionalService.emergencyService', e.target.checked)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-semibold text-gray-700">خدمة طوارئ 24 ساعة - 24/7 Emergency Service</span>
+                            </label>
+                        </div>
+                    </div>
+                );
+
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="container mx-auto p-4 min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
             <div className="mb-8 text-center">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">إضافة نشاط غذائي جديد</h1>
-                <p className="text-gray-600">Add New Food Business</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">إضافة نشاط جديد</h1>
+                <p className="text-gray-600">Add New Business - All Service Types</p>
             </div>
 
             {/* Status Message */}
@@ -583,25 +1043,58 @@ const AdminPanel = () => {
                                     value={formData.businessName}
                                     onChange={(e) => handleInputChange('businessName', e.target.value)}
                                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="مثال: مطعم البيت الشامي"
+                                    placeholder="مثال: مطعم البيت الشامي، عيادة الدكتور أحمد، صيانة الأجهزة المنزلية"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    نوع النشاط - Business Type *
+                                    نوع النشاط الرئيسي - Main Business Type *
                                 </label>
                                 <select
-                                    value={formData.businessType}
-                                    onChange={(e) => {
-                                        handleInputChange('businessType', e.target.value);
-                                        handleInputChange('mainBusinessType', e.target.value);
-                                    }}
+                                    value={formData.mainBusinessType}
+                                    onChange={(e) => handleMainBusinessTypeChange(e.target.value)}
                                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
-                                    {businessTypeOptions.map(type => (
+                                    {mainBusinessTypes.map(type => (
                                         <option key={type.value} value={type.value}>
                                             {type.icon} {type.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    نوع النشاط الفرعي - Sub Category *
+                                </label>
+                                <select
+                                    value={formData.subBusinessType}
+                                    onChange={(e) => handleInputChange('subBusinessType', e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                >
+                                    <option value="">اختر التصنيف الفرعي...</option>
+                                    {getCurrentSubCategories().map(subType => (
+                                        <option key={subType} value={subType}>
+                                            {subType}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    نوع الكيان - Entity Type
+                                </label>
+                                <select
+                                    value={formData.entityType}
+                                    onChange={(e) => handleInputChange('entityType', e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    {entityTypeOptions.map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
                                         </option>
                                     ))}
                                 </select>
@@ -616,48 +1109,12 @@ const AdminPanel = () => {
                                     onChange={(e) => handleInputChange('businessDescription', e.target.value)}
                                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     rows={3}
-                                    placeholder="وصف مختصر عن النشاط..."
+                                    placeholder="وصف مختصر عن النشاط وخدماته..."
                                 />
                             </div>
 
-                            {/* Food Categories */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    الفئات الأساسية - Main Categories
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {mainCategoryOptions.map(category => (
-                                        <label key={category} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.foodCategories.mainCategories.includes(category)}
-                                                onChange={() => handleArrayChange('foodCategories.mainCategories', category)}
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <span className="text-sm text-gray-700">{category}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    نمط المأكولات - Cuisine Style
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {cuisineStyleOptions.map(style => (
-                                        <label key={style} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.foodCategories.cuisineStyle.includes(style)}
-                                                onChange={() => handleArrayChange('foodCategories.cuisineStyle', style)}
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <span className="text-sm text-gray-700">{style}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
+                            {/* Category-specific fields */}
+                            {renderCategorySpecificFields()}
 
                             {/* Location */}
                             <div className="grid grid-cols-2 gap-4">
@@ -703,45 +1160,6 @@ const AdminPanel = () => {
                                 />
                             </div>
 
-                            {/* Service Options */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                    خيارات الخدمة - Service Options
-                                </label>
-                                <div className="space-y-2">
-                                    <label className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.serviceInfo.diningOptions.dineIn}
-                                            onChange={(e) => handleInputChange('serviceInfo.diningOptions.dineIn', e.target.checked)}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-700">تناول في المكان - Dine In</span>
-                                    </label>
-                                    <label className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.serviceInfo.diningOptions.takeaway}
-                                            onChange={(e) => handleInputChange('serviceInfo.diningOptions.takeaway', e.target.checked)}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-700">استلام - Takeaway</span>
-                                    </label>
-                                    <label className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.serviceInfo.diningOptions.delivery}
-                                            onChange={(e) => {
-                                                handleInputChange('serviceInfo.diningOptions.delivery', e.target.checked);
-                                                handleInputChange('delivery.isAvailable', e.target.checked);
-                                            }}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-700">توصيل - Delivery</span>
-                                    </label>
-                                </div>
-                            </div>
-
                             {/* Payment Methods */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -781,22 +1199,6 @@ const AdminPanel = () => {
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Dining Room Type */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    نوع الصالة - Dining Room Type
-                                </label>
-                                <select
-                                    value={formData.serviceInfo.diningRoomType}
-                                    onChange={(e) => handleInputChange('serviceInfo.diningRoomType', e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    {diningRoomOptions.map(option => (
-                                        <option key={option} value={option}>{option}</option>
-                                    ))}
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -830,4 +1232,5 @@ const AdminPanel = () => {
         </div>
     );
 };
+
 export default AdminPanel;

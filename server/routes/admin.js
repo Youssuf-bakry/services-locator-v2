@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { body, query } = require('express-validator');
+const { getServicesValidator } = require('../middleware/validation');
 
 // Import both models
 const Business = require('../models/Business');  // Food businesses
 const FoodReview = require('../models/FoodReview');  // Reviews
 
 // ========================================
-// FOOD BUSINESS ROUTES (New)
+// FOOD BUSINESS ROUTES 
 // ========================================
 
 // Validation for creating food businesses
@@ -102,15 +103,7 @@ router.post('/businesses', createBusinessValidation, async (req, res) => {
 });
 
 // GET /api/admin/businesses - List food businesses
-router.get('/businesses', [
-  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-  query('businessType').optional().isIn(['all', 'مطعم', 'مقهى', 'مخبزة', 'حلويات', 'وجبات سريعة', 'عصائر', 'كافيتيريا', 'بوفيه مفتوح', 'مطبخ منزلي']),
-  query('city').optional(),
-  query('isVerified').optional().isBoolean(),
-  query('sortBy').optional().isIn(['businessName', 'businessType', 'createdAt', 'ratings.averageRating']),
-  query('sortOrder').optional().isIn(['asc', 'desc'])
-], async (req, res) => {
+router.get('/businesses',getbusinessesValidator, async (req, res) => {
   try {
     const { page = 1, limit = 20, businessType, city, isVerified, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
@@ -389,14 +382,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // GET /api/admin/services - List services with filtering and pagination
-router.get('/services', [
-  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-  query('status').optional().isIn(['all', 'active', 'pending', 'closed', 'suspended']),
-  query('category').optional().isIn(['all', 'pharmacy', 'restaurant', 'grocery', 'hospital', 'gas_station', 'bank', 'mall', 'other']),
-  query('sortBy').optional().isIn(['name', 'category', 'createdAt', 'rating', 'status']),
-  query('sortOrder').optional().isIn(['asc', 'desc'])
-], adminController.getServices);
+router.get('/services', getServicesValidator, adminController.getServices);
 
 // POST /api/admin/services - Create new service
 router.post('/services', createServiceValidation, adminController.createService);
