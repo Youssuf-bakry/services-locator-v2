@@ -4,12 +4,12 @@ const BACKEND_API_URL = CONFIG.BACKEND_API_URL;
 // API service for all business types
 const businessApiService = {
     async createBusiness(businessData) {
-        const apiUrl = BACKEND_API_URL; // Update to your API URL
+        const apiUrl = BACKEND_API_URL;
         
         console.log('🔍 Sending business data to:', apiUrl);
         console.log('📦 Business data:', businessData);
             
-        const response = await fetch(`${apiUrl}/businesses`, {
+        const response = await fetch(`${apiUrl}/admin/businesses`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -17,19 +17,20 @@ const businessApiService = {
             body: JSON.stringify(businessData)
         });
         
-        const result = await response.json();
-        console.log('📡 Backend response:', result);
-        
+        // ✅ Check status BEFORE reading the body
         if (!response.ok) {
             const errorText = await response.text();
             console.error('❌ Backend error details:', errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
+        // ✅ Only read JSON if response is OK
+        const result = await response.json();
+        console.log('📡 Backend response:', result);
+        
         return result.data;
     }
 };
-
 // Location service
 const locationService = {
     async getCurrentPosition() {

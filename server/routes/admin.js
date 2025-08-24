@@ -8,6 +8,11 @@ const { getServicesValidator } = require('../middleware/validation');
 const Business = require('../models/Business');  // Food businesses
 const FoodReview = require('../models/FoodReview');  // Reviews
 
+
+// Add this for testing - at the top after your imports
+router.get('/test', (req, res) => {
+  res.json({ message: 'Admin routes are working!' });
+});
 // ========================================
 // FOOD BUSINESS ROUTES 
 // ========================================
@@ -59,7 +64,7 @@ const createBusinessValidation = [
 ];
 
 // POST /api/admin/businesses - Create new food business
-router.post('/businesses', createBusinessValidation, async (req, res) => {
+router.post('/businesses', async (req, res) => {
   try {
     console.log('📥 Creating food business:', req.body.businessName);
     console.log('📦 Business data:', req.body);
@@ -103,7 +108,7 @@ router.post('/businesses', createBusinessValidation, async (req, res) => {
 });
 
 // GET /api/admin/businesses - List food businesses
-router.get('/businesses',getbusinessesValidator, async (req, res) => {
+router.get('/businesses', async (req, res) => {
   try {
     const { page = 1, limit = 20, businessType, city, isVerified, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     

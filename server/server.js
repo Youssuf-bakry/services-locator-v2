@@ -141,6 +141,7 @@ try {
   console.log('⚠️ Admin routes not found:', error.message);
 }
 
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
